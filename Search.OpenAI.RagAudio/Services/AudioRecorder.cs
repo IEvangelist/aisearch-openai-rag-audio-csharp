@@ -34,6 +34,9 @@ public sealed class AudioRecorder(IJSRuntime jsRuntime) : IAsyncDisposable
 
             var port = await _workletNode.GetPortAsync();
 
+            // Start message port to ensure that messages can be received.
+            await port.StartAsync();
+
             var messageListener = await EventListener<MessageEvent>.CreateAsync(_context.JSRuntime, async e =>
             {
                 if (OnDataAvailable is not null)
