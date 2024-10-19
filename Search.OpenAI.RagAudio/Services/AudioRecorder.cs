@@ -41,7 +41,7 @@ public sealed class AudioRecorder(IJSRuntime jsRuntime) : IAsyncDisposable
             {
                 if (OnDataAvailable is not null)
                 {
-                    var buffer = await Int16Array.CreateAsync(_context.JSRuntime, await e.GetDataAsync());
+                    await using var buffer = await Int16Array.CreateAsync(_context.JSRuntime, await e.GetDataAsync());
                     await OnDataAvailable.Invoke(buffer);
                 }
             });
