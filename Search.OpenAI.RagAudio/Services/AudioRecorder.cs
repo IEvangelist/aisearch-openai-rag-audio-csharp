@@ -39,7 +39,7 @@ public sealed class AudioRecorder(IJSRuntime jsRuntime) : IAsyncDisposable
                 if (OnDataAvailable is not null)
                 {
                     var buffer = await e.GetDataAsync<Int16Array>();
-                    OnDataAvailable.Invoke(buffer);
+                    await OnDataAvailable.Invoke(buffer);
                 }
             });
 

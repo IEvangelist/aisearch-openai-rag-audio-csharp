@@ -1,6 +1,4 @@
-﻿@implements IAsyncDisposable
-@inject ILocalStorageService localStorage
-@inject IJSRuntime JS
+﻿@inject ILocalStorageService localStorage
 
 <div class="flex justify-end items-center space-x-2">
     <span class="text-gray-800 dark:text-gray-500">Light</span>
@@ -13,37 +11,27 @@
 
 @code {
     private bool _darkMode;
-    private IJSObjectReference _themeModule = default!;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
-            _themeModule = await JS.InvokeAsync<IJSObjectReference>("import", "./Shared/DarkModeToggle.razor.js");
-            
             var theme = localStorage.GetItem<string>("theme");
-            
+
             _darkMode = theme is "dark";
 
-            await _themeModule.InvokeVoidAsync("setTheme", theme);
+            DarkModeJSModule.SetTheme(theme);
         }
     }
 
-    async Task ToggleTheme(ChangeEventArgs args)
+    void ToggleTheme(ChangeEventArgs args)
     {
         _darkMode = (bool)args.Value!;
+
         var theme = _darkMode ? "dark" : "light";
 
         localStorage.SetItem("theme", theme);
         
-        await _themeModule.InvokeVoidAsync("setTheme", theme);
-    }
-
-    async ValueTask IAsyncDisposable.DisposeAsync()
-    {
-        if (_themeModule is not null)
-        {
-            await _themeModule.DisposeAsync();
-        }
+        DarkModeJSModule.SetTheme(theme);
     }
 }

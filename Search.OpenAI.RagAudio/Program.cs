@@ -16,4 +16,8 @@ builder.Services.AddScoped<AudioRecorderService>();
 builder.Services.AddScoped<AudioPlayer>();
 builder.Services.AddScoped<AudioPlayerService>();
 
+await JSHost.ImportAsync(
+    moduleName: nameof(DarkModeJSModule),
+    moduleUrl: $"../js/dark-mode-toggle.js?{Guid.NewGuid()}" /* cache bust */);
+
 await builder.Build().RunAsync();
