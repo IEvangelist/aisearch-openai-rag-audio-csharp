@@ -21,7 +21,12 @@ public sealed class AudioRecorderService(
 
         var stream = await _mediaDevices.GetUserMediaAsync(new()
         {
-            Audio = true,
+            Audio = new MediaTrackConstraints()
+            {
+                SampleRate = 48_000,
+                SampleSize = 16,
+                ChannelCount = 1,
+            },
         });
 
         recorder.OnDataAvailable += OnHandleAudioDataAsync;
