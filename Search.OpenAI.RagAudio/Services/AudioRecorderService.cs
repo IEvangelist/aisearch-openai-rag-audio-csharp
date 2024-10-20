@@ -36,9 +36,8 @@ public sealed class AudioRecorderService(
         return recorder.StopAsync();
     }
 
-    private async Task OnHandleAudioDataAsync(Int16Array data)
+    private async Task OnHandleAudioDataAsync(Uint8Array array)
     {
-        var array = await Uint8Array.CreateAsync(jsRuntime, data);
         var length = await AppendToBufferAsync(array);
 
         if (length >= BUFFER_SIZE)

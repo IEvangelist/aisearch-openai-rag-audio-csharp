@@ -7,7 +7,7 @@ public sealed class AudioRecorder(IJSRuntime jsRuntime) : IAsyncDisposable
     private MediaStreamAudioSourceNode? _mediaStreamSource;
     private AudioWorkletNode? _workletNode;
 
-    public event Func<Int16Array, Task>? OnDataAvailable;
+    public event Func<Uint8Array, Task>? OnDataAvailable;
 
     public async Task StartAsync(MediaStream stream)
     {
@@ -41,7 +41,7 @@ public sealed class AudioRecorder(IJSRuntime jsRuntime) : IAsyncDisposable
             {
                 if (OnDataAvailable is not null)
                 {
-                    await using var buffer = await Int16Array.CreateAsync(_context.JSRuntime, await e.GetDataAsync());
+                    await using var buffer = await Uint8Array.CreateAsync(_context.JSRuntime, await e.GetDataAsync());
                     await OnDataAvailable.Invoke(buffer);
                 }
             });
