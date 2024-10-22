@@ -1,0 +1,27 @@
+﻿<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+     @onclick=@OnClosed>
+    <div class="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg bg-white p-6"
+         onclick="e => e.stopPropagation()">
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-xl font-bold">{groundingFile.name}</h2>
+            <button aria-label="Close grounding file view"
+                    class="text-gray-500 hover:text-gray-700"
+                    @onclick=@OnClosed>
+                <img src="lucide/x.svg" class="h-5 w-5" />
+            </button>
+        </div>
+        <div class="flex-grow overflow-hidden">
+            <pre class="h-[40vh] overflow-auto text-wrap rounded-md bg-gray-100 p-4 text-sm">
+                <code>@File.Content</code>
+            </pre>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required GroundingFile File { get; set; }
+
+    [Parameter, EditorRequired]
+    public required EventCallback OnClosed { get; set; }
+}
