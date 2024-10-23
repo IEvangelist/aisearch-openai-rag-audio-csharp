@@ -21,7 +21,7 @@
             </button>
             <StatusMessage IsRecording="@_isRecording" />
         </div>
-        <GroundingFiles Files=@(_groundingFiles) OnSelected=@(file => _selectedFile = file) />
+        @* <GroundingFiles Files=@(_groundingFiles) OnSelected=@(file => _selectedFile = file) /> *@
     </main>
 
     <footer class="py-4 text-center">
@@ -30,6 +30,6 @@
 
     @if (_selectedFile is not null)
     {
-        <GroundingFileView File=@(_selectedFile) OnClosed=@(file => _selectedFile = null) />
+        @* <GroundingFileView File=@(_selectedFile) OnClosed=@(file => _selectedFile = null) /> *@
     }
 </div>

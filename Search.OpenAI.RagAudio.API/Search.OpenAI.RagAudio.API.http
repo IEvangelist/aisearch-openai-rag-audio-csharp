@@ -1,6 +1,0 @@
-@Search.OpenAI.RagAudio.API_HostAddress = http://localhost:5004
-
-GET {{Search.OpenAI.RagAudio.API_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

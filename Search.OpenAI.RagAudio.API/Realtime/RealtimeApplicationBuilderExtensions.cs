@@ -2,8 +2,10 @@
 
 internal static class RealtimeApplicationBuilderExtensions
 {
-    internal static void MapRealtimeEndpoint(this IApplicationBuilder app)
+    internal static void MapRealtimeEndpoint(this WebApplication app)
     {
+        app.MapGet("/", () => "✅ Realtime API is ready!");
+
         app.Use(async (context, next) =>
         {
             try

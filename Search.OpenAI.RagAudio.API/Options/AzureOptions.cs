@@ -3,7 +3,7 @@
 [OptionsValidator]
 public sealed partial record class AzureOptions : IValidateOptions<AzureOptions>
 {
-    [Required, Url]
+    [Required]
     public Uri AzureOpenAIEndpoint { get; set; } = new("https://api.openai.com");
 
     [Required, MinLength(3)]
@@ -11,7 +11,7 @@ public sealed partial record class AzureOptions : IValidateOptions<AzureOptions>
 
     public string? AzureOpenAIKey { get; set; }
 
-    [Required, Url]
+    [Required]
     public Uri? AzureSearchEndpoint { get; set; }
 
     [Required, MinLength(3)]

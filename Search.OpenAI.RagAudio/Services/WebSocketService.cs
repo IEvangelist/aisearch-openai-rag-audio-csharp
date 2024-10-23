@@ -1,6 +1,8 @@
 ﻿namespace Search.OpenAI.RagAudio.Services;
 
-public sealed class WebSocketService(IConfiguration configuration) : IDisposable
+public sealed class WebSocketService(
+    IConfiguration configuration,
+    ILogger<WebSocketService> logger) : IDisposable
 {
     private readonly ClientWebSocket _client = new();
 
@@ -103,8 +105,13 @@ public sealed class WebSocketService(IConfiguration configuration) : IDisposable
     {
         if (_client.State is not WebSocketState.Open)
         {
-            throw new InvalidOperationException(
-                "WebSocket is not open.");
+            if (logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(
+                    "WebSocket connection isn't open.");
+            }
+
+            return Task.CompletedTask;
         }
 
         var json = JsonSerializer.Serialize(message, typeInfo);

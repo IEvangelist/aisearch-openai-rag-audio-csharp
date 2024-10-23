@@ -3,7 +3,7 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Configuration["RealtimeEndpoint"] = "https://localhost:7074/realtime";
+builder.Configuration.AddJsonFile("appsettings.json");
 
 builder.Services.AddScoped(sp => new HttpClient
 {

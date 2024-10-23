@@ -1,6 +1,6 @@
 ﻿namespace Search.OpenAI.RagAudio.Pages;
 
-public sealed partial class Home
+public sealed partial class Home : IDisposable
 {
     private bool _isRecording = false;
     private CancellationTokenSource _cancellationTokenSource = new();
@@ -157,5 +157,12 @@ public sealed partial class Home
                         Content: source.Chunk))
             ];
         }
+    }
+
+    public void Dispose()
+    {
+        AudioRecorderService.OnAudioRecordedAsync -= AddUserAudioAsync;
+
+        _cancellationTokenSource?.Dispose();
     }
 }

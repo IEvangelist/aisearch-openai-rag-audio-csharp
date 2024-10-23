@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "Start API and Frontend",
+    "Projects": [
+      {
+        "Path": "Search.OpenAI.RagAudio.API\\Search.OpenAI.RagAudio.API.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Search.OpenAI.RagAudio\\Search.OpenAI.RagAudio.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
