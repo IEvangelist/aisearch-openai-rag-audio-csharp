@@ -1,6 +1,8 @@
-﻿namespace Search.OpenAI.RagAudio.API.Services;
+﻿using Microsoft.Extensions.Logging;
 
-internal sealed class WebSocketForwarder
+namespace Search.OpenAI.RagAudio.API.Services;
+
+internal sealed class WebSocketForwarder(ILogger<WebSocketForwarder> logger)
 {
     private const int MaxChannelSize = 16;
 
@@ -11,10 +13,20 @@ internal sealed class WebSocketForwarder
         Func<MemoryStream, Task<ProcessorResult>>  onProcessServerMessage,
         CancellationToken cancellationToken)
     {
-        var sessionState = new SessionState(IsPendingTools: true);
+        using var scope = logger.BeginScope("Forwarding WebSocket messages.");
 
         var @in = Channel.CreateBounded<MemoryStream>(MaxChannelSize);
         var @out = Channel.CreateBounded<MemoryStream>(MaxChannelSize);
+
+        var isInfoLoggingEnabled = logger.IsEnabled(LogLevel.Information);
+        if (isInfoLoggingEnabled)
+        {
+            logger.LogInformation("""
+                Channeling bi-directional connection between {First} <--> {Second}
+                """,
+                serverWebSocket.ToString(), "");
+
+        }
 
         var clientToServer = ForwardToChannelAsync(clientWebSocket, @in, @out, onProcessClientMessage, cancellationToken);
         var fromServer = ForwardFromChannelAsync(@in, serverWebSocket, cancellationToken);

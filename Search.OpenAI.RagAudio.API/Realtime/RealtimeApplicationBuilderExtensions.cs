@@ -1,12 +1,10 @@
 ﻿namespace Microsoft.AspNetCore.Builder;
 
-internal static class RealtimeApplicationBuilderExtensions
+internal static partial class RealtimeApplicationBuilderExtensions
 {
     internal static void MapRealtimeEndpoint(this WebApplication app)
     {
-        app.MapGet("/", () => "✅ Realtime API is ready!");
-
-        app.Use(async (context, next) =>
+        app.Use(static async (context, next) =>
         {
             try
             {
@@ -25,11 +23,13 @@ internal static class RealtimeApplicationBuilderExtensions
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 }
 
-                using var scope = logger.BeginScope("Processing WebSocket request.");
-                using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+                using var scope = logger.BeginScope("Processing incoming WebSocket request to the server.");
+                using var serverWebSocket = await context.WebSockets.AcceptWebSocketAsync();
 
-                if (webSocket is null)
+                if (serverWebSocket is null)
                 {
+                    logger.LogWarning("WebSocket connection wasn't accepted.");
+
                     return;
                 }
 
@@ -44,12 +44,57 @@ internal static class RealtimeApplicationBuilderExtensions
                     _ => realtimeProcessor.WithTokenCredential(new DefaultAzureCredential())
                 };
 
-                await processor.ProcessAsync(context, webSocket);
+                await processor.ProcessAsync(context, serverWebSocket);
             }
             finally
             {
                 await next(context);
             }
         });
+
+        app.MapGet("/", static () => Results.Content(content: """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>API Ready</title>
+                <style>
+                    * {
+                        font-family: monospace;
+                        font-size: calc(20px + 5vmin);
+                        font-weight: bold;
+                    }
+
+                    body {
+                        margin: 0;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        flex-direction: column;
+                        height: 100vh;
+                        background-color: #222; /* Darker background */
+                        color: #00cccc; /* Less intense cyan */                        
+                    }
+                    button {
+                        margin-top: 4rem;
+                        padding: 1rem 1.5rem;
+                        background-color: #8B008B; /* Really dark magenta */
+                        color: #222; /* Dark text color */
+                        border: none;
+                        border-radius: 2rem;
+                        cursor: pointer;
+                    }
+                    button:hover {
+                        background-color: #ff99cc; /* Slightly lighter magenta on hover */
+                    }
+                </style>
+            </head>
+            <body>
+                <div>✅ Realtime API is ready!</div>
+                <button onclick="window.close()">❌ Close</button>
+            </body>
+            </html>
+            """, contentType: "text/html"));
     }
 }

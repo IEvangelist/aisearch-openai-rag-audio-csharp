@@ -1,16 +1,19 @@
 ﻿namespace Search.OpenAI.RagAudio.API.Services;
 
 internal sealed class RealtimeWebSocketProcessor(
-    ILogger<RealtimeWebSocketProcessor> logger,
+    ILoggerFactory loggerFactory,
     IOptions<AzureOptions> options) : IToolRegistry, IDisposable
 {
     private const string HeaderRequestId = "x-ms-client-request-id";
 
-    private static readonly TokenRequestContext s_tokenRequestContext = new(["https://cognitiveservices.azure.com/.default"]);
+    private static readonly TokenRequestContext s_tokenRequestContext = new([
+        "https://cognitiveservices.azure.com/.default"
+    ]);
 
+    private readonly ILogger<RealtimeWebSocketProcessor> _logger = loggerFactory.CreateLogger<RealtimeWebSocketProcessor>();
     private readonly ClientWebSocket _clientWebSocket = new();
-    private readonly Dictionary<string, Tool> _tools = new(StringComparer.OrdinalIgnoreCase);
-    private readonly WebSocketForwarder _webSocketForwarder = new();
+    private readonly ConcurrentDictionary<string, Tool> _tools = new(StringComparer.OrdinalIgnoreCase);
+    private readonly WebSocketForwarder _webSocketForwarder = new(loggerFactory.CreateLogger<WebSocketForwarder>());
     private readonly AzureOptions _azureOptions = options.Value;
 
     private TokenCredential? _tokenCredential;
@@ -51,17 +54,17 @@ internal sealed class RealtimeWebSocketProcessor(
             async message => await OnProcessServerMessageAsync(sessionState, message),
             cancellationToken);
 
-        if (logger.IsEnabled(LogLevel.Information))
+        if (_logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation("Disconnecting from OpenAI Realtime WebSocket.");
+            _logger.LogInformation("Disconnecting from OpenAI Realtime WebSocket.");
         }
     }
 
     private async Task<ClientWebSocket> ConnectToOpenAIRealtimeAsync(HttpContext context)
     {
-        if (logger.IsEnabled(LogLevel.Information))
+        if (_logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation("Connecting to OpenAI Realtime WebSocket.");
+            _logger.LogInformation("Connecting to OpenAI Realtime WebSocket.");
         }
 
         var realtimeUri = _azureOptions.AzureOpenAIEndpoint.ToRealtimeUri(
@@ -120,7 +123,7 @@ internal sealed class RealtimeWebSocketProcessor(
                 {
                     session["max_response_output_tokens"] = maxTokens;
                 }
-                session["tool_choice"] = _tools.Count is 0 ? "none" : "auto";
+                session["tool_choice"] = _tools.IsEmpty ? "none" : "auto";
                 session["tools"] = new JsonArray(items: [
                         .._tools.Values.Select(t => t.SchemaJsonNode.DeepClone())
                     ]);

@@ -1,4 +1,5 @@
-﻿global using System.ComponentModel.DataAnnotations;
+﻿global using System.Collections.Concurrent;
+global using System.ComponentModel.DataAnnotations;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Net.WebSockets;
 global using System.Runtime.CompilerServices;
@@ -17,8 +18,8 @@ global using Azure.Search.Documents.Models;
 
 global using Microsoft.Extensions.Options;
 
-global using Search.OpenAI.RagAudio.API.Search;
 global using Search.OpenAI.RagAudio.API.Options;
 global using Search.OpenAI.RagAudio.API.Realtime;
+global using Search.OpenAI.RagAudio.API.Search;
 global using Search.OpenAI.RagAudio.API.Serialization;
 global using Search.OpenAI.RagAudio.API.Services;

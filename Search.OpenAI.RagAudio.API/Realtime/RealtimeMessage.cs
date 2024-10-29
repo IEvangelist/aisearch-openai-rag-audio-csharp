@@ -1,6 +1,6 @@
 ﻿namespace Search.OpenAI.RagAudio.API.Realtime;
 
-internal struct RealtimeMessage(JsonNode Node)
+internal readonly record struct RealtimeMessage(JsonNode Node)
 {
     private readonly JsonNode? _item = Node["item"];
 
@@ -40,17 +40,21 @@ internal struct RealtimeMessage(JsonNode Node)
     {
         try
         {
-            var reader = new Utf8JsonReader(new ReadOnlySpan<byte>(message.GetBuffer(), 0, (int)message.Length));
+            var reader = new Utf8JsonReader(
+                new ReadOnlySpan<byte>(message.GetBuffer(), 0, (int)message.Length));
 
             while (reader.Read())
             {
-                if (reader.TokenType is JsonTokenType.PropertyName && reader.GetString() == "type")
+                if (reader.TokenType is JsonTokenType.PropertyName &&
+                    reader.GetString() is "type")
                 {
                     reader.Read();
+
                     if (reader.TokenType is JsonTokenType.String)
                     {
                         return reader.GetString() ?? string.Empty;
                     }
+
                     break;
                 }
             }
