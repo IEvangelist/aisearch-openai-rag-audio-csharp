@@ -1,0 +1,27 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Aspire.Hosting.Azure.CognitiveServices" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="9.0.1" />
+    <PackageVersion Include="Aspire.Azure.AI.OpenAI" Version="9.0.0-preview.5.24551.3" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="9.0.0" />
+    <!--
+    
+    Do not upgrade the Azure.AI.OpenAI to 2.1.0 as it is broken.
+      See: https://github.com/Azure/azure-sdk-for-net/issues/47535
+
+    -->
+    <PackageVersion Include="Azure.AI.OpenAI" Version="2.1.0-beta.2" />
+    <PackageVersion Include="Azure.Identity" Version="1.13.2" />
+    <PackageVersion Include="Azure.Search.Documents" Version="11.7.0-beta.2" />
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="9.1.0-preview.1.25064.3" />
+    <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="9.0.1" />
+    <PackageVersion Include="Blazor.LocalStorage.WebAssembly" Version="9.0.1" />
+    <PackageVersion Include="KristofferStrube.Blazor.WebAudio" Version="0.1.0-alpha.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.0.1" />
+    <PackageVersion Include="OpenAI" Version="2.1.0" />
+  </ItemGroup>
+</Project>

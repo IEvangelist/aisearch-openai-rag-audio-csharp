@@ -4,8 +4,11 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
+    <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:9.0</ContainerBaseImage>
+    <UserSecretsId>d3b0ce65-4ccf-4a32-91c4-dfa94ffeb701</UserSecretsId>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
-    <UserSecretsId>0e2ef60d-c64f-42e4-8d33-a2ec63ff99ac</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,7 +16,12 @@
     <PackageReference Include="Azure.Search.Documents" />
     <PackageReference Include="Azure.AI.OpenAI" />
     <PackageReference Include="Microsoft.Extensions.AI" />
-    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="OpenAI" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ContainerPort Include="8081" />
   </ItemGroup>
 
   <ItemGroup>

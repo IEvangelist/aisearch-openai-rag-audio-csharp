@@ -4,11 +4,11 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Configuration.AddJsonFile("appsettings.json");
-
-builder.Services.AddScoped(sp => new HttpClient
-{
-    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
-});
+builder.Configuration.AddInMemoryCollection(
+    [
+        new KeyValuePair<string, string?>(
+            "ApiAddress", Environment.GetEnvironmentVariable("services__api__https__0"))
+    ]);
 
 builder.Services.AddLocalStorageServices();
 builder.Services.AddMediaDevicesService();

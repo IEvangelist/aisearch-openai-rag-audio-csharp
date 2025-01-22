@@ -20,6 +20,4 @@
 [JsonSerializable(typeof(Source))]
 [JsonSerializable(typeof(ToolResult))]
 [JsonSerializable(typeof(TurnDetection))]
-public sealed partial class SerializationContext : JsonSerializerContext
-{
-}
+public sealed partial class SerializationContext : JsonSerializerContext;

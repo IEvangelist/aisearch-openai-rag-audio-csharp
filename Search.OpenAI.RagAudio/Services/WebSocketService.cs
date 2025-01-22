@@ -13,6 +13,9 @@ public sealed class WebSocketService(
         Func<Message?, Task> onWebSocketMessageAsync,
         CancellationToken cancellationToken)
     {
+        var address = configuration["ApiAddress"];
+        logger.LogInformation("API address: {Address}", address);
+
         var endpoint = configuration["RealtimeEndpoint"];
         if (string.IsNullOrWhiteSpace(endpoint))
         {
@@ -33,9 +36,10 @@ public sealed class WebSocketService(
 
             var bytesReceived = 0;
 
-            while (!cancellationToken.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested && _client is { State: WebSocketState.Open })
             {
                 var result = await _client.ReceiveAsync(buffer, cancellationToken);
+
                 if (result is { EndOfMessage: true })
                 {
                     var finalResult = new WebSocketReceiveResult(bytesReceived + result.Count, result.MessageType, true, result.CloseStatus, result.CloseStatusDescription);
@@ -103,7 +107,7 @@ public sealed class WebSocketService(
         JsonTypeInfo<T> typeInfo,
         CancellationToken cancellationToken = default)
     {
-        if (_client.State is not WebSocketState.Open)
+        if (_client is not { State: WebSocketState.Open })
         {
             if (logger.IsEnabled(LogLevel.Warning))
             {

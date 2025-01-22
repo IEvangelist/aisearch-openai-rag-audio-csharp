@@ -1,32 +1,24 @@
 ﻿var builder = DistributedApplication.CreateBuilder(args);
 
-var api =
-    builder.AddProject<Projects.Search_OpenAI_RagAudio_API>("api");
+var openai = builder.ExecutionContext.IsPublishMode
+    ? builder.AddAzureOpenAI("openai")
+            .AddDeployment(deployment: new AzureOpenAIDeployment(
+                name: builder.Configuration.GetValue("Azure:AzureOpenAIDeployment", "gpt-4o-realtime-preview-1001"),
+                modelName: builder.Configuration.GetValue("Azure:AzureOpenAIModel", "gpt-4o-realtime-preview"),
+                modelVersion: builder.Configuration.GetValue("Azure:AzureOpenAIModelVersion", "2024-10-01"))
+            )
+    : builder.AddConnectionString("openai");
 
-var frontend =
-    builder.AddProject<Projects.Search_OpenAI_RagAudio>("frontend")
-           .WithReference(api)
-           .WaitFor(api);
+var api = builder.AddProject<Projects.Search_OpenAI_RagAudio_WebAPI>("api")
+    .WithReference(openai)
+    .WithAzureEnvironmentVariables();
 
-builder.Eventing.Subscribe<BeforeResourceStartedEvent>(
+var frontend = builder.AddProject<Projects.Search_OpenAI_RagAudio>("frontend")
+    .WithReference(api)
+    .WaitFor(api);
+
+builder.Eventing.Subscribe(
     frontend.Resource,
-    static (@event, cancellationToken) =>
-    {
-        var logger = @event.Services.GetRequiredService<ILogger<Program>>();
-
-        if (logger.IsEnabled(LogLevel.Information) &&
-            cancellationToken.IsCancellationRequested is false)
-        {
-            var url = @event.Resource.Annotations.Where(
-                    predicate: static annotation => annotation is AllocatedEndpoint)
-                .Cast<AllocatedEndpoint>()
-                .FirstOrDefault()?
-                .Address;
-
-            logger.LogInformation("Starting frontend: 🔗 {Url}", url);
-        }
-
-        return Task.CompletedTask;
-    });
+    AppEvents.BeforeFrontendStarted);
 
 builder.Build().Run();

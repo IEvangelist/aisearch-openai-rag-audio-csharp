@@ -13,15 +13,16 @@ internal static partial class RealtimeApplicationBuilderExtensions
                     return;
                 }
 
+                if (context.WebSockets.IsWebSocketRequest is false)
+                {
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    return;
+                }
+
                 await using var serviceScope = context.RequestServices.CreateAsyncScope();
                 var services = serviceScope.ServiceProvider;
 
                 var logger = services.GetRequiredService<ILogger<Program>>();
-
-                if (context.WebSockets.IsWebSocketRequest is false)
-                {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                }
 
                 using var scope = logger.BeginScope("Processing incoming WebSocket request to the server.");
                 using var serverWebSocket = await context.WebSockets.AcceptWebSocketAsync();

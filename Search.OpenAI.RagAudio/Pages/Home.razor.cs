@@ -42,6 +42,7 @@ public sealed partial class Home : IDisposable
         }
         else
         {
+            await _cancellationTokenSource.CancelAsync();
             _cancellationTokenSource = new();
 
             _ = Task.Run(StartSessionAsync);

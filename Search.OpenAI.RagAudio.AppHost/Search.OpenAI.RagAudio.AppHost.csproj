@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Sdk Name="Aspire.AppHost.Sdk" Version="9.0.0-rc.1.24511.1" />
+  <Sdk Name="Aspire.AppHost.Sdk" Version="9.0.0" />
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -12,11 +12,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.0.0-rc.1.24511.1" />
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.Azure.CognitiveServices" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Search.OpenAI.RagAudio.API\Search.OpenAI.RagAudio.API.csproj" />
+    <ProjectReference Include="..\Search.OpenAI.RagAudio.WebAPI\Search.OpenAI.RagAudio.WebAPI.csproj" />
     <ProjectReference Include="..\Search.OpenAI.RagAudio\Search.OpenAI.RagAudio.csproj" />
   </ItemGroup>
 
