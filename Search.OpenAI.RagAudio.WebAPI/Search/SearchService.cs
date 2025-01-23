@@ -1,9 +1,3 @@
-using System.ComponentModel;
-using Azure.Identity;
-using Azure.Search.Documents;
-using Azure.Search.Documents.Models;
-using Microsoft.Extensions.AI;
-
 namespace Search.OpenAI.RagAudio.WebAPI.Search;
 
 internal sealed partial class SearchService
@@ -60,7 +54,7 @@ internal sealed partial class SearchService
                 "Search for '{Query}' in the knowledge base.", searchArgs.Query);
         }
 
-        var response = await _searchClient.SearchAsync<SearchResult>(
+        var response = await _searchClient.SearchAsync<SharedSearchResult>(
             searchArgs.Query,
                     new SearchOptions
                     {
@@ -119,7 +113,7 @@ internal sealed partial class SearchService
 
         // Use search instead of filter to align with how default integrated vectorization indexes
         // are generated, where chunk_id is searchable with a keyword tokenizer, not filterable 
-        var results = await _searchClient.SearchAsync<SearchResult>(
+        var results = await _searchClient.SearchAsync<SharedSearchResult>(
             condition,
             new SearchOptions
             {
@@ -129,7 +123,7 @@ internal sealed partial class SearchService
                 SearchFields = { "chunk_id" }
             });
 
-        var documents = new List<SearchResult>();
+        var documents = new List<SharedSearchResult>();
 
         await foreach (var result in results.Value.GetResultsAsync())
         {

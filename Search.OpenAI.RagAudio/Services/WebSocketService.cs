@@ -10,7 +10,7 @@ public sealed class WebSocketService(
         Action onWebSocketOpen,
         Action onWebSocketClose,
         Action<Exception> onWebSocketError,
-        Func<Message?, Task> onWebSocketMessageAsync,
+        Func<ClientSendableMessageBase?, Task> onWebSocketMessageAsync,
         CancellationToken cancellationToken)
     {
         var address = configuration["ApiAddress"];
@@ -46,32 +46,10 @@ public sealed class WebSocketService(
 
                     var json = Encoding.UTF8.GetString(buffer.Array!, buffer.Offset, finalResult.Count);
 
-                    var messageType = JsonSerializer.Deserialize(
-                        json, SerializationContext.Default.Message)!;
+                    logger.LogInformation("Received: {Json}", json);
 
-                    var message = messageType.Type switch
-                    {
-                        "response.done" =>
-                            JsonSerializer.Deserialize(json, SerializationContext.Default.ResponseDone),
-
-                        "response.audio.delta" =>
-                            JsonSerializer.Deserialize(json, SerializationContext.Default.ResponseAudioDelta),
-
-                        "response.audio_transcript.delta" =>
-                            JsonSerializer.Deserialize(json, SerializationContext.Default.ResponseAudioTranscriptDelta),
-
-                        "input_audio_buffer.speech_started" => messageType,
-
-                        "conversation.item.input_audio_transcription.completed" =>
-                           JsonSerializer.Deserialize(json, SerializationContext.Default.ResponseInputAudioTranscriptionCompleted),
-
-                        "extension.middle_tier_tool_response" =>
-                            JsonSerializer.Deserialize(json, SerializationContext.Default.ExtensionMiddleTierToolResponse),
-
-                        "error" => messageType, //onReceivedError?.(message);
-
-                        _ => messageType
-                    };
+                    var message = JsonSerializer.Deserialize(
+                        json, SerializationContext.Default.ClientSendableMessageBase);
 
                     await onWebSocketMessageAsync.Invoke(message);
                 }
@@ -102,10 +80,32 @@ public sealed class WebSocketService(
         }
     }
 
+    public Task SendAudioBytesAsync(
+        byte[] audioBytes,
+        CancellationToken cancellationToken = default)
+    {
+        if (_client is not { State: WebSocketState.Open })
+        {
+            if (logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(
+                    "WebSocket connection isn't open.");
+            }
+
+            return Task.CompletedTask;
+        }
+
+        return _client.SendAsync(
+            new ArraySegment<byte>(audioBytes),
+            WebSocketMessageType.Binary,
+            endOfMessage: true,
+            cancellationToken);
+    }
+
     public Task SendJsonMessageAsync<T>(
         T message,
         JsonTypeInfo<T> typeInfo,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) where T : ClientReceivableMessageBase
     {
         if (_client is not { State: WebSocketState.Open })
         {

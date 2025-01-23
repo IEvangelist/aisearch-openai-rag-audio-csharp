@@ -48,10 +48,16 @@ public sealed class RealtimeConversationProcessor(
 
         var sessionOptions = new ConversationSessionOptions()
         {
+            Voice = ConversationVoice.Echo,
+            TurnDetectionOptions = ConversationTurnDetectionOptions.CreateServerVoiceActivityTurnDetectionOptions(),
             InputTranscriptionOptions = new()
             {
                 Model = "whisper-1",
-            }
+            },
+            Instructions = """
+                You are a helpful assistant.
+                The user is listening to answers with audio, so it's **super** important that answers are _as short as possible_, a single sentence if at all possible.
+                """
         };
 
         await session.ConfigureSessionAsync(sessionOptions, cancellationToken);
@@ -99,8 +105,8 @@ public sealed class RealtimeConversationProcessor(
 
                 var rawMessageFromClient = Encoding.UTF8.GetString(_webSocketReceiveBuffer, 0, receiveResult.Count);
 
-                var clientMessage = JsonSerializer.Deserialize<IClientMessageDiscriminator>(
-                    rawMessageFromClient, SerializationContext.Default.IClientMessageDiscriminator);
+                var clientMessage = JsonSerializer.Deserialize(
+                    rawMessageFromClient, SerializationContext.Default.ClientReceivableMessageBase);
 
                 if (clientMessage is ClientReceivableUserMessage clientUserMessage)
                 {
@@ -108,6 +114,10 @@ public sealed class RealtimeConversationProcessor(
                         ConversationItem.CreateUserMessage([clientUserMessage.Text]), cancellationToken).ConfigureAwait(false);
 
                     await _session.StartResponseAsync(cancellationToken).ConfigureAwait(false);
+                }
+                else if (clientMessage is ClientReceivableClearBufferMessage)
+                {
+                    await _session.ClearInputAudioAsync(cancellationToken);
                 }
                 else
                 {
@@ -141,7 +151,7 @@ public sealed class RealtimeConversationProcessor(
 
                 await SendMessageToClientAsync(
                         clientWebSocket,
-                        new ClientSendableSpeechStartedMessage(),
+                        new ClientSendableSpeechStartedMessage("Speech started..."),
                         SerializationContext.Default.ClientSendableSpeechStartedMessage,
                         cancellationToken
                     )
@@ -224,7 +234,7 @@ public sealed class RealtimeConversationProcessor(
         WebSocket clientWebSocket,
         TMessage message,
         JsonTypeInfo<TMessage> jsonTypeInfo,
-        CancellationToken cancellationToken = default) where TMessage : IClientSendableMessage
+        CancellationToken cancellationToken = default) where TMessage : ClientSendableMessageBase
     {
         ArgumentNullException.ThrowIfNull(clientWebSocket);
 

@@ -1,8 +1,10 @@
 ﻿namespace Search.OpenAI.Shared.Serialization;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
-[JsonSerializable(typeof(IClientMessageDiscriminator))]
+[JsonSerializable(typeof(ClientReceivableMessageBase))]
 [JsonSerializable(typeof(ClientReceivableUserMessage))]
+[JsonSerializable(typeof(ClientReceivableClearBufferMessage))]
+[JsonSerializable(typeof(ClientSendableMessageBase))]
 [JsonSerializable(typeof(ClientSendableConnectedMessage))]
 [JsonSerializable(typeof(ClientSendableControlMessage))]
 [JsonSerializable(typeof(ClientSendableSpeechStartedMessage))]

@@ -13,7 +13,7 @@ public sealed class AudioRecorderService(
     private MediaDevices? _mediaDevices;
     private Uint8Array? _buffer;
 
-    public event Func<string, Task>? OnAudioRecordedAsync;
+    public event Func<byte[], Task>? OnAudioRecordedAsync;
 
     public async Task StartAsync()
     {
@@ -53,11 +53,11 @@ public sealed class AudioRecorderService(
             buffer = buffer.Skip(BUFFER_SIZE).ToArray();
 
             var regularArray = Encoding.UTF8.GetString(toSend);
-            var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(regularArray));
+            var bytes = Encoding.UTF8.GetBytes(regularArray);
 
             if (OnAudioRecordedAsync is { } handler)
             {
-                await handler.Invoke(base64);
+                await handler.Invoke(bytes);
             }
         }
     }
