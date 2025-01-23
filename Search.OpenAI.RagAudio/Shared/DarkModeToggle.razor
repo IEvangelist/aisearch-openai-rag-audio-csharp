@@ -10,6 +10,7 @@
 </div>
 
 @code {
+
     private bool _darkMode;
 
     protected override void OnAfterRender(bool firstRender)
@@ -26,7 +27,7 @@
 
     void ToggleTheme(ChangeEventArgs args)
     {
-        _darkMode = (bool)args.Value!;
+        _darkMode = !_darkMode;
 
         var theme = _darkMode ? "dark" : "light";
 
