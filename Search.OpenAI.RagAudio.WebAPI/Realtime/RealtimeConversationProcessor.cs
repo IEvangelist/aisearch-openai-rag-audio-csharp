@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-
-namespace Search.OpenAI.RagAudio.WebAPI.Realtime;
+﻿namespace Search.OpenAI.RagAudio.WebAPI.Realtime;
 
 #pragma warning disable OPENAI002 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 

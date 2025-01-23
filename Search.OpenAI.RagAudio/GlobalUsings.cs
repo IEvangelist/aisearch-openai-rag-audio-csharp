@@ -11,8 +11,6 @@ global using KristofferStrube.Blazor.DOM;
 global using KristofferStrube.Blazor.MediaCaptureStreams;
 global using KristofferStrube.Blazor.WebAudio;
 global using KristofferStrube.Blazor.WebIDL;
-
-global using Microsoft.AspNetCore.Components;
 global using Microsoft.AspNetCore.Components.Web;
 global using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 global using Microsoft.JSInterop;

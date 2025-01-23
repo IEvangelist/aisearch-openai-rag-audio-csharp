@@ -1,6 +1,4 @@
-﻿using Search.OpenAI.RagAudio.API.Search;
-
-namespace Search.OpenAI.RagAudio.API.Serialization;
+﻿namespace Search.OpenAI.RagAudio.API.Serialization;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
 [JsonSerializable(typeof(SearchArgs))]

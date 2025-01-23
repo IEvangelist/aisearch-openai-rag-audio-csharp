@@ -3,7 +3,10 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Logging.SetMinimumLevel(LogLevel.Information);
+builder.Logging.SetMinimumLevel(
+    builder.HostEnvironment.IsDevelopment()
+        ? LogLevel.Debug 
+        : LogLevel.Information);
 
 builder.Configuration.AddJsonFile("appsettings.json");
 builder.Configuration.AddInMemoryCollection(

@@ -8,4 +8,8 @@
 [JsonSerializable(typeof(ClientSendableSpeechStartedMessage))]
 [JsonSerializable(typeof(ClientSendableTextDeltaMessage))]
 [JsonSerializable(typeof(ClientSendableTranscriptionMessage))]
+[JsonSerializable(typeof(SearchArgs))]
+[JsonSerializable(typeof(SearchResult))]
+[JsonSerializable(typeof(GroundingArgs))]
+[JsonSerializable(typeof(GroundingData))]
 public sealed partial class SerializationContext : JsonSerializerContext;

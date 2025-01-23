@@ -3,7 +3,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 builder.Services.AddRealtimeServices(builder.Configuration);
 
-builder.Services.AddScoped<AzureOpenAIClient>(provider =>
+builder.Services.AddScoped(provider =>
 {
     var options = provider.GetRequiredService<IOptions<AzureOptions>>().Value;
 

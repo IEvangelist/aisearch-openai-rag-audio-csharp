@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-
-namespace Search.OpenAI.RagAudio.API.Services;
+﻿namespace Search.OpenAI.RagAudio.API.Services;
 
 internal sealed class WebSocketForwarder(ILogger<WebSocketForwarder> logger)
 {

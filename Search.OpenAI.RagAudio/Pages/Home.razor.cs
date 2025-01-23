@@ -1,29 +1,21 @@
 ﻿namespace Search.OpenAI.RagAudio.Pages;
 
-public sealed partial class Home : IDisposable
+public sealed partial class Home(
+    AudioPlayerService audioPlayerService,
+    AudioRecorderService audioRecorderService,
+    WebSocketService webSocketService,
+    ILogger<Home> logger) : IDisposable
 {
     private bool _isRecording = false;
     private CancellationTokenSource _cancellationTokenSource = new();
     private GroundingFile? _selectedFile;
     private GroundingFile[] _groundingFiles = [];
 
-    [Inject]
-    public required ILogger<Home> Logger { get; set; }
-
-    [Inject]
-    public required AudioPlayerService AudioPlayerService { get; set; }
-
-    [Inject]
-    public required AudioRecorderService AudioRecorderService { get; set; }
-
-    [Inject]
-    public required WebSocketService WebSocketService { get; set; }
-
     protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
-            AudioRecorderService.OnAudioRecordedAsync += AddUserAudioAsync;
+            audioRecorderService.OnAudioRecordedAsync += AddUserAudioAsync;
         }
     }
 
@@ -33,8 +25,8 @@ public sealed partial class Home : IDisposable
         {
             await _cancellationTokenSource.CancelAsync();
 
-            await AudioRecorderService.StopAsync();
-            await AudioPlayerService.StopAsync();
+            await audioRecorderService.StopAsync();
+            await audioPlayerService.StopAsync();
 
             await InputAudioBufferClearAsync();
 
@@ -47,8 +39,8 @@ public sealed partial class Home : IDisposable
 
             _ = Task.Run(StartSessionAsync);
 
-            await AudioRecorderService.StartAsync();
-            await AudioPlayerService.ResetAsync();
+            await audioRecorderService.StartAsync();
+            await audioPlayerService.ResetAsync();
 
             _isRecording = true;
         }
@@ -56,7 +48,7 @@ public sealed partial class Home : IDisposable
 
     private async Task StartSessionAsync()
     {
-        await WebSocketService.ConnectAsync(
+        await webSocketService.ConnectAsync(
             OnWebSocketOpen,
             OnWebSocketClose,
             OnWebSocketError,
@@ -65,7 +57,7 @@ public sealed partial class Home : IDisposable
 
         // TODO: Handle "whisper-1" model addition when enableInputAudioTranscription.
 
-        await WebSocketService.SendJsonMessageAsync(
+        await webSocketService.SendJsonMessageAsync(
             new SessionUpdateCommand(
                 Type: "session.update",
                 Session: new Session(new TurnDetection("server_vad"))),
@@ -77,7 +69,7 @@ public sealed partial class Home : IDisposable
         var command = new InputAudioBufferAppendCommand(
             "input_audio_buffer.append", base64Audio);
 
-        return WebSocketService.SendJsonMessageAsync(
+        return webSocketService.SendJsonMessageAsync(
             command, SerializationContext.Default.InputAudioBufferAppendCommand);
     }
 
@@ -86,33 +78,33 @@ public sealed partial class Home : IDisposable
         var command = new InputAudioBufferClearCommand(
             "input_audio_buffer.clear");
 
-        return WebSocketService.SendJsonMessageAsync(
+        return webSocketService.SendJsonMessageAsync(
             command, SerializationContext.Default.InputAudioBufferClearCommand);
     }
 
     private void OnWebSocketOpen()
     {
-        if (Logger.IsEnabled(LogLevel.Information))
+        if (logger.IsEnabled(LogLevel.Information))
         {
-            Logger.LogInformation(
+            logger.LogInformation(
                 "WebSocket connection opened.");
         }
     }
 
     private void OnWebSocketClose()
     {
-        if (Logger.IsEnabled(LogLevel.Information))
+        if (logger.IsEnabled(LogLevel.Information))
         {
-            Logger.LogInformation(
+            logger.LogInformation(
                 "WebSocket connection closed.");
         }
     }
 
     private void OnWebSocketError(Exception exception)
     {
-        if (Logger.IsEnabled(LogLevel.Warning))
+        if (logger.IsEnabled(LogLevel.Warning))
         {
-            Logger.LogWarning(
+            logger.LogWarning(
                 exception, "WebSocket connection error: {Error}", exception.Message);
         }
     }
@@ -124,20 +116,20 @@ public sealed partial class Home : IDisposable
             return;
         }
 
-        if (Logger.IsEnabled(LogLevel.Information))
+        if (logger.IsEnabled(LogLevel.Information))
         {
-            Logger.LogInformation(
+            logger.LogInformation(
                 "Received WebSocket message: {Message}", message);
         }
 
         if (message is ResponseAudioDelta delta)
         {
-            await AudioPlayerService.PlayAsync(delta.Delta);
+            await audioPlayerService.PlayAsync(delta.Delta);
         }
 
         if (message is { Type: "input_audio_buffer.speech_started" })
         {
-            await AudioPlayerService.StopAsync();
+            await audioPlayerService.StopAsync();
         }
 
         if (message is ExtensionMiddleTierToolResponse toolResponse)
@@ -162,7 +154,7 @@ public sealed partial class Home : IDisposable
 
     public void Dispose()
     {
-        AudioRecorderService.OnAudioRecordedAsync -= AddUserAudioAsync;
+        audioRecorderService.OnAudioRecordedAsync -= AddUserAudioAsync;
 
         _cancellationTokenSource?.Dispose();
     }
