@@ -1,5 +1,14 @@
 ﻿@page "/"
 
+<!--
+
+    Sample voices:
+    - https://cdn.openai.com/API/docs/audio/alloy.wav
+    - https://cdn.openai.com/API/docs/audio/echo.wav
+    - https://cdn.openai.com/API/docs/audio/shimmer.wav
+
+-->
+
 <div class="flex h-dvh flex-col">
     <main class="flex flex-grow flex-col items-center justify-center">
         <h1 class="mb-8 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-4xl font-bold text-transparent pointer-events-none focus-visible:outline-none md:text-7xl">
@@ -25,6 +34,7 @@
     </main>
 
     <footer class="py-4 text-center">
+        <small>@_message</small>
         <p>Built with Azure AI Search + Azure OpenAI</p>
     </footer>
 

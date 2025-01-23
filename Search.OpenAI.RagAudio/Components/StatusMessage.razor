@@ -1,10 +1,4 @@
-﻿@if (!IsRecording)
-{
-    <p class="text mb-4 mt-6">
-        Ask anything about Contoso employee benefits
-    </p>
-}
-else
+﻿@if (IsRecording)
 {
     <div class="flex items-center">
         <div class="relative h-6 w-6 overflow-hidden">
@@ -19,6 +13,12 @@ else
         </div>
         <p class="text mb-4 ml-2 mt-6">Conversation in progress</p>
     </div>
+}
+else
+{
+    <p class="text mb-4 mt-6">
+        Ask anything about Contoso employee benefits
+    </p>
 }
 
 @code {

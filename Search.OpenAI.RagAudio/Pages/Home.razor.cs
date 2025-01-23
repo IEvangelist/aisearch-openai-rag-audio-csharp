@@ -7,6 +7,7 @@ public sealed partial class Home(
     ILogger<Home> logger) : IDisposable
 {
     private bool _isRecording = false;
+    private string _message = "Start a conversation?";
     private CancellationTokenSource _cancellationTokenSource = new();
     private GroundingFile? _selectedFile;
     private GroundingFile[] _groundingFiles = [];
@@ -116,6 +117,11 @@ public sealed partial class Home(
         if (message is ClientSendableSpeechStartedMessage)
         {
             await audioPlayerService.StopAsync();
+        }
+
+        if (message is ClientSendableConnectedMessage greeting)
+        {
+            _message = greeting.Greeting;
         }
 
         //if (message is ExtensionMiddleTierToolResponse toolResponse)

@@ -6,7 +6,8 @@
 public sealed class AudioRecorderService(
     AudioRecorder recorder,
     IMediaDevicesService mediaDevicesService,
-    IJSInProcessRuntime jsRuntime)
+    IJSInProcessRuntime jsRuntime,
+    ILogger<AudioRecorder> logger)
 {
     private const int BUFFER_SIZE = 4_800;
 
@@ -17,6 +18,8 @@ public sealed class AudioRecorderService(
 
     public async Task StartAsync()
     {
+        logger.LogInformation("Starting audio recording.");
+
         _mediaDevices ??= await mediaDevicesService.GetMediaDevicesAsync();
 
         var stream = await _mediaDevices.GetUserMediaAsync(new()
@@ -36,6 +39,8 @@ public sealed class AudioRecorderService(
 
     public Task StopAsync()
     {
+        logger.LogInformation("Stopping audio recording.");
+
         recorder.OnDataAvailable -= OnHandleAudioDataAsync;
 
         return recorder.StopAsync();
@@ -43,10 +48,19 @@ public sealed class AudioRecorderService(
 
     private async Task OnHandleAudioDataAsync(Uint8Array array)
     {
+        //var buffer = await array.GetAsArrayAsync();
+
+        //if (OnAudioRecordedAsync is { } handler)
+        //{
+        //    await handler.Invoke(buffer);
+        //}
+
         var length = await AppendToBufferAsync(array);
 
         if (length >= BUFFER_SIZE)
         {
+            logger.LogInformation("Sending buffered audio.");
+
             var buffer = await _buffer.GetAsArrayAsync();
 
             var toSend = buffer.Take(BUFFER_SIZE).ToArray();
