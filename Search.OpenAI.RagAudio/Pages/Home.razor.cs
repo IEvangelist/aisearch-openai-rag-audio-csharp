@@ -1,75 +1,79 @@
 ﻿namespace Search.OpenAI.RagAudio.Pages;
 
 public sealed partial class Home(
-    AudioPlayerService audioPlayerService,
-    AudioRecorderService audioRecorderService,
     WebSocketService webSocketService,
-    ILogger<Home> logger) : IDisposable
+    MicrophoneSignal signal,
+    ILogger<Home> logger) : IRealtimeWebSocketHandler, IDisposable
 {
     private bool _isRecording = false;
     private string _message = "Start a conversation?";
+    private string _control = "";
     private CancellationTokenSource _cancellationTokenSource = new();
     private GroundingFile? _selectedFile;
     private GroundingFile[] _groundingFiles = [];
 
-    protected override void OnAfterRender(bool firstRender)
+    private Microphone? _microphone;
+    private Speaker? _speaker;
+    private PipeReader? _microphoneInput;
+
+    private void OnMicrophoneAvailable(PipeReader microphoneInput)
     {
-        if (firstRender)
-        {
-            audioRecorderService.OnAudioRecordedAsync += AddUserAudioAsync;
-        }
+        _microphoneInput = microphoneInput;
+
+        signal.MicrophoneAvailable();
     }
 
-    private async Task OnToggleListeningAsync()
+    private Task OnToggleListeningAsync() => InvokeAsync(async () =>
     {
-        if (_isRecording)
+        if (_microphone is null || _speaker is null)
         {
-            await _cancellationTokenSource.CancelAsync();
-
-            await audioRecorderService.StopAsync();
-            await audioPlayerService.StopAsync();
-
-            await InputAudioBufferClearAsync();
-
-            _isRecording = false;
+            return;
         }
-        else
+
+        try
         {
-            await _cancellationTokenSource.CancelAsync();
-            _cancellationTokenSource = new();
+            if (_isRecording)
+            {
+                await _cancellationTokenSource.CancelAsync();
 
-            _ = Task.Run(StartSessionAsync);
+                await _speaker.ClearPlaybackAsync();
 
-            await audioRecorderService.StartAsync();
-            await audioPlayerService.ResetAsync();
+                await InputAudioBufferClearAsync();
 
-            _isRecording = true;
+                _isRecording = false;
+            }
+            else
+            {
+                await _cancellationTokenSource.CancelAsync();
+                _cancellationTokenSource = new();
+
+                await _microphone.StartAsync();
+
+                _ = Task.Run(StartSessionAsync);
+
+                _isRecording = true;
+            }
         }
-    }
+        finally
+        {
+            StateHasChanged();
+        }
+    });
 
     private async Task StartSessionAsync()
     {
-        await webSocketService.ConnectAsync(
-            OnWebSocketOpen,
-            OnWebSocketClose,
-            OnWebSocketError,
-            OnWebSocketMessageAsync,
-            _cancellationTokenSource.Token);
+        if (_speaker is null)
+        {
+            return;
+        }
+
+        await webSocketService.ConnectAsync(this, _cancellationTokenSource.Token);
     }
 
-    private Task AddUserAudioAsync(byte[] audioBytes)
-    {
-        return webSocketService.SendAudioBytesAsync(audioBytes);
-    }
+    Task InputAudioBufferClearAsync() =>
+        InvokeAsync(() => webSocketService.SendJsonMessageAsync(new ClientReceivableClearBufferMessage()));
 
-    private Task InputAudioBufferClearAsync()
-    {
-        return webSocketService.SendJsonMessageAsync(
-            new ClientReceivableClearBufferMessage(),
-            SerializationContext.Default.ClientReceivableClearBufferMessage);
-    }
-
-    private void OnWebSocketOpen()
+    void IRealtimeWebSocketHandler.OnWebSocketOpen()
     {
         if (logger.IsEnabled(LogLevel.Information))
         {
@@ -78,7 +82,7 @@ public sealed partial class Home(
         }
     }
 
-    private void OnWebSocketClose()
+    void IRealtimeWebSocketHandler.OnWebSocketClose()
     {
         if (logger.IsEnabled(LogLevel.Information))
         {
@@ -87,7 +91,7 @@ public sealed partial class Home(
         }
     }
 
-    private void OnWebSocketError(Exception exception)
+    void IRealtimeWebSocketHandler.OnWebSocketError(Exception exception)
     {
         if (logger.IsEnabled(LogLevel.Warning))
         {
@@ -96,7 +100,8 @@ public sealed partial class Home(
         }
     }
 
-    private async Task OnWebSocketMessageAsync(ClientSendableMessageBase? message)
+    Task IRealtimeWebSocketHandler.OnWebSocketMessageAsync(ClientSendableMessageBase? message) =>
+        InvokeAsync(async () =>
     {
         if (message is null)
         {
@@ -109,14 +114,20 @@ public sealed partial class Home(
                 "Received WebSocket message: {Message}", message);
         }
 
-        if (message is ClientSendableTextDeltaMessage delta)
+        if (message is ClientSendableControlMessage control)
         {
-            await audioPlayerService.PlayAsync(delta.Delta);
+            _control = control.Action;
         }
 
-        if (message is ClientSendableSpeechStartedMessage)
+        if (message is ClientSendableTextDeltaMessage delta)
         {
-            await audioPlayerService.StopAsync();
+        }
+
+        if (message is ClientSendableSpeechStartedMessage started)
+        {
+            await (_speaker?.ClearPlaybackAsync() ?? Task.CompletedTask);
+
+            _message = started.Message;
         }
 
         if (message is ClientSendableConnectedMessage greeting)
@@ -142,12 +153,35 @@ public sealed partial class Home(
         //                Content: source.Chunk))
         //    ];
         //}
-    }
 
-    public void Dispose()
+        StateHasChanged();
+    });
+
+    Task IRealtimeWebSocketHandler.OnWebSocketAudioAsync(byte[] audioBytes) =>
+        InvokeAsync(async () =>
     {
-        audioRecorderService.OnAudioRecordedAsync -= AddUserAudioAsync;
+        if (_speaker is not null)
+        {
+            logger.LogInformation("Enqueuing audio data, received {Count:0,0} bytes.", audioBytes.Length);
 
-        _cancellationTokenSource?.Dispose();
+            var enqueued = await _speaker.EnqueueAsync(audioBytes);
+            if (enqueued is false)
+            {
+                logger.LogWarning("Unable to enqueue audio...");
+
+                await OnToggleListeningAsync();
+            }
+
+            StateHasChanged();
+        }
+    });
+
+    void IDisposable.Dispose() => _cancellationTokenSource?.Dispose();
+
+    async Task<PipeReader> IRealtimeWebSocketHandler.GetAudioReaderAsync(CancellationToken cancellationToken)
+    {
+        await signal.WaitForMicrophoneAvailabilityAsync(cancellationToken);
+
+        return _microphoneInput!;
     }
 }

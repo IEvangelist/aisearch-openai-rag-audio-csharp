@@ -1,5 +1,6 @@
 ﻿namespace Search.OpenAI.Shared.Messages;
 
+[JsonDerivedType(typeof(ClientSendableMessageBase), typeDiscriminator: "base")]
 [JsonDerivedType(typeof(ClientSendableConnectedMessage), typeDiscriminator: "connected")]
 [JsonDerivedType(typeof(ClientSendableControlMessage), typeDiscriminator: "control")]
 [JsonDerivedType(typeof(ClientSendableSpeechStartedMessage), typeDiscriminator: "speech_started")]

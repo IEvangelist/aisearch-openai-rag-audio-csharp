@@ -21,6 +21,8 @@ builder.Services.AddScoped<AudioPlayer>();
 builder.Services.AddScoped<AudioPlayerService>();
 builder.Services.AddScoped<WebSocketService>();
 
+builder.Services.AddSingleton<MicrophoneSignal>();
+
 await JSHost.ImportAsync(
     moduleName: nameof(DarkModeJSModule),
     moduleUrl: $"../js/dark-mode-toggle.js?{Guid.NewGuid()}" /* cache bust */);

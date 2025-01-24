@@ -33,8 +33,12 @@
         <GroundingFiles Files=@(_groundingFiles) OnSelected=@(file => _selectedFile = file) />
     </main>
 
+    <Microphone @ref="_microphone" OnMicrophoneAvailable=@OnMicrophoneAvailable />
+    <Speaker @ref="_speaker" />
+
     <footer class="py-4 text-center">
-        <small>@_message</small>
+        <code>@_control</code>
+        <code>@_message</code>
         <p>Built with Azure AI Search + Azure OpenAI</p>
     </footer>
 

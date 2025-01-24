@@ -26,7 +26,6 @@ public sealed class RealtimeConversationProcessor(
                 clientWebSocket,
                 new ClientSendableConnectedMessage(
                     "Hello, you're connected to the ASP.NET Core Minimal API realtime server."),
-                SerializationContext.Default.ClientSendableConnectedMessage,
                 cancellationToken
             )
             .ConfigureAwait(false);
@@ -54,9 +53,10 @@ public sealed class RealtimeConversationProcessor(
             {
                 Model = "whisper-1",
             },
-            Instructions = """
+            Instructions = $"""
                 You are a helpful assistant.
                 The user is listening to answers with audio, so it's **super** important that answers are _as short as possible_, a single sentence if at all possible.
+                The current date is {DateTime.Now.ToLongDateString()}
                 """
         };
 
@@ -81,29 +81,28 @@ public sealed class RealtimeConversationProcessor(
         var receiveResult = await clientWebSocket.ReceiveAsync(_webSocketReceiveBuffer, cancellationToken)
             .ConfigureAwait(false);
 
+        await _session.StartResponseAsync(cancellationToken).ConfigureAwait(false);
+
         while (!receiveResult.CloseStatus.HasValue)
         {
+            // Handle client-sent audio bytes.
             if (receiveResult is { MessageType: WebSocketMessageType.Binary })
             {
-                logger.LogInformation("Received audio from the client.");
+                var audioBytesFromClient = new ArraySegment<byte>(_webSocketReceiveBuffer, 0, receiveResult.Count);
 
-                var bytesReceivedFromClient = new ArraySegment<byte>(_webSocketReceiveBuffer, 0, receiveResult.Count);
-
-                // Temporary workaround for pre-2.2 bug with SendInputAudioAsync(BinaryData)
-                await SendAudioToServiceViaWorkaroundAsync(bytesReceivedFromClient, cancellationToken)
+                await _session.SendInputAudioAsync(
+                        BinaryData.FromBytes(audioBytesFromClient),
+                        cancellationToken
+                    )
                     .ConfigureAwait(false);
-
-                //await _session.SendInputAudioAsync(
-                //        BinaryData.FromBytes(bytesReceivedFromClient),
-                //        cancellationToken
-                //    )
-                //    .ConfigureAwait(false);
             }
-            else
+            else // Handle client-sent text-based messages.
             {
                 logger.LogInformation("Received non-audio message from the client.");
 
                 var rawMessageFromClient = Encoding.UTF8.GetString(_webSocketReceiveBuffer, 0, receiveResult.Count);
+
+                logger.LogInformation("Raw client message: {Msg}", rawMessageFromClient);
 
                 var clientMessage = JsonSerializer.Deserialize(
                     rawMessageFromClient, SerializationContext.Default.ClientReceivableMessageBase);
@@ -111,9 +110,8 @@ public sealed class RealtimeConversationProcessor(
                 if (clientMessage is ClientReceivableUserMessage clientUserMessage)
                 {
                     await _session.AddItemAsync(
-                        ConversationItem.CreateUserMessage([clientUserMessage.Text]), cancellationToken).ConfigureAwait(false);
-
-                    await _session.StartResponseAsync(cancellationToken).ConfigureAwait(false);
+                            ConversationItem.CreateUserMessage([clientUserMessage.Text]), cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 else if (clientMessage is ClientReceivableClearBufferMessage)
                 {
@@ -143,88 +141,140 @@ public sealed class RealtimeConversationProcessor(
             throw new InvalidOperationException($"Internal error: attempting to start service session loop without a client WebSocket");
         }
 
+        var transcription = new StringBuilder();
+
         await foreach (var update in _session.ReceiveUpdatesAsync(cancellationToken).ConfigureAwait(false))
         {
-            if (update is ConversationInputSpeechStartedUpdate)
+            var updateTask = update switch
             {
-                logger.LogInformation("Starting speech...");
+                ConversationSessionStartedUpdate conversationSessionStarted => OnConversationStartedAsync(
+                    clientWebSocket,
+                    conversationSessionStarted,
+                    cancellationToken),
 
-                await SendMessageToClientAsync(
+                ConversationInputSpeechStartedUpdate speechStarted => OnSpeechStartedAsync(
+                    clientWebSocket,
+                    speechStarted,
+                    cancellationToken),
+
+                ConversationInputSpeechFinishedUpdate speechFinished => OnSpeechFinishedAsync(
+                    clientWebSocket,
+                    speechFinished,
+                    cancellationToken),
+
+                ConversationItemStreamingPartDeltaUpdate outputDelta => OnStreamingOutputDeltaAsync(
+                    clientWebSocket,
+                    outputDelta,
+                    transcription,
+                    cancellationToken),
+
+                ConversationItemStreamingFinishedUpdate itemFinished => OnStreamingFinishedAsync(
+                    itemFinished,
+                    cancellationToken),
+
+                ConversationResponseFinishedUpdate responseFinished => OnResponseFinishedAsync(
+                    responseFinished,
+                    cancellationToken),
+
+                ConversationItemStreamingAudioTranscriptionFinishedUpdate or ConversationItemStreamingTextFinishedUpdate =>
+                    OnStreamingTextTranscriptionFinishedAsync(
                         clientWebSocket,
-                        new ClientSendableSpeechStartedMessage("Speech started..."),
-                        SerializationContext.Default.ClientSendableSpeechStartedMessage,
-                        cancellationToken
-                    )
-                    .ConfigureAwait(false);
-            }
+                        transcription,
+                        cancellationToken),
 
-            if (update is ConversationItemStreamingPartDeltaUpdate deltaUpdate)
+                _ => Task.CompletedTask
+            };
+
+            await updateTask;
+        }
+    }
+
+    private static async Task OnConversationStartedAsync(WebSocket clientWebSocket, ConversationSessionStartedUpdate conversationSessionStarted, CancellationToken cancellationToken)
+    {
+        await SendMessageToClientAsync(
+                clientWebSocket,
+                new ClientSendableControlMessage("Conversation started..."),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static async Task OnSpeechStartedAsync(WebSocket clientWebSocket, ConversationInputSpeechStartedUpdate speechStarted, CancellationToken cancellationToken)
+    {
+        await SendMessageToClientAsync(
+                clientWebSocket,
+                new ClientSendableControlMessage("Speech started..."),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static async Task OnSpeechFinishedAsync(WebSocket clientWebSocket, ConversationInputSpeechFinishedUpdate speechFinished, CancellationToken cancellationToken)
+    {
+        await SendMessageToClientAsync(
+                clientWebSocket,
+                new ClientSendableControlMessage("Speech finished..."),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private async Task OnStreamingOutputDeltaAsync(WebSocket clientWebSocket, ConversationItemStreamingPartDeltaUpdate outputDelta, StringBuilder transcription, CancellationToken cancellationToken)
+    {
+        var text = outputDelta.Text ?? outputDelta.AudioTranscript;
+
+        transcription.Append(text);
+
+        logger.LogInformation("Appended text to transcription buffer: {Item}", text);
+
+        if (outputDelta.AudioBytes is not null)
+        {
+            await clientWebSocket.SendAsync(
+                    outputDelta.AudioBytes.ToArray(),
+                    WebSocketMessageType.Binary,
+                    endOfMessage: true,
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+    }
+
+    private async Task OnStreamingFinishedAsync(ConversationItemStreamingFinishedUpdate itemFinished, CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Item finished: {Item}", itemFinished);
+
+        if (!string.IsNullOrEmpty(itemFinished.FunctionName))
+        {
+            if (await itemFinished.GetFunctionCallOutputAsync([]) is { } output)
             {
-                logger.LogInformation("Handling streaming part delta update...");
-
-                var contentIdForClient = $"{deltaUpdate.ItemId}-{deltaUpdate.ContentPartIndex}";
-
-                if (!string.IsNullOrEmpty(deltaUpdate.Text))
-                {
-                    logger.LogInformation("Handling text...");
-
-                    var clientDeltaMessage = new ClientSendableTextDeltaMessage(deltaUpdate.Text, contentIdForClient);
-
-                    await SendMessageToClientAsync(
-                            clientWebSocket,
-                            clientDeltaMessage,
-                            SerializationContext.Default.ClientSendableTextDeltaMessage,
-                            cancellationToken
-                        )
-                        .ConfigureAwait(false);
-                }
-
-                if (!string.IsNullOrEmpty(deltaUpdate.AudioTranscript))
-                {
-                    logger.LogInformation("Handling audio transcript...");
-
-                    var clientDeltaMessage = new ClientSendableTextDeltaMessage(deltaUpdate.AudioTranscript, contentIdForClient);
-
-                    await SendMessageToClientAsync(
-                            clientWebSocket,
-                            clientDeltaMessage,
-                            SerializationContext.Default.ClientSendableTextDeltaMessage,
-                            cancellationToken
-                        )
-                        .ConfigureAwait(false);
-                }
-
-                if (deltaUpdate.AudioBytes is not null)
-                {
-                    logger.LogInformation("Handling audio bytes...");
-
-                    await clientWebSocket.SendAsync(
-                            deltaUpdate.AudioBytes.ToArray(),
-                            WebSocketMessageType.Binary,
-                            endOfMessage: true,
-                            cancellationToken
-                        )
-                        .ConfigureAwait(false);
-                }
-            }
-
-            if (update is ConversationInputTranscriptionFinishedUpdate transcriptionFinishedUpdate)
-            {
-                logger.LogInformation("Handling finished input transcription...");
-
-                var transcriptionMessage = new ClientSendableTranscriptionMessage(
-                    transcriptionFinishedUpdate.ItemId,
-                    transcriptionFinishedUpdate.Transcript);
-
-                await SendMessageToClientAsync(
-                        clientWebSocket,
-                        transcriptionMessage,
-                        SerializationContext.Default.ClientSendableTranscriptionMessage,
-                        cancellationToken
-                    )
-                    .ConfigureAwait(false);
+                await _session!.AddItemAsync(output, cancellationToken).ConfigureAwait(false);
             }
         }
+    }
+
+    private async Task OnResponseFinishedAsync(ConversationResponseFinishedUpdate responseFinished, CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Response finished: {Item}", responseFinished);
+
+        // If we added one or more function call results, instruct the model to respond to them.
+        if (responseFinished.CreatedItems.Any(item => !string.IsNullOrEmpty(item.FunctionName)))
+        {
+            await _session!.StartResponseAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task OnStreamingTextTranscriptionFinishedAsync(WebSocket clientWebSocket, StringBuilder transcription, CancellationToken cancellationToken)
+    {
+        var text = transcription.ToString();
+
+        logger.LogInformation("Transcription finished: {Item}", text);
+
+        var message = new ClientSendableTranscriptionMessage("transcription", text);
+
+        transcription.Clear();
+
+        await SendMessageToClientAsync(clientWebSocket, message,cancellationToken)
+            .ConfigureAwait(false);        
     }
 
     /// <summary>
@@ -233,12 +283,11 @@ public sealed class RealtimeConversationProcessor(
     private static async Task SendMessageToClientAsync<TMessage>(
         WebSocket clientWebSocket,
         TMessage message,
-        JsonTypeInfo<TMessage> jsonTypeInfo,
         CancellationToken cancellationToken = default) where TMessage : ClientSendableMessageBase
     {
         ArgumentNullException.ThrowIfNull(clientWebSocket);
 
-        var serializedMessage = JsonSerializer.Serialize(message, jsonTypeInfo);
+        var serializedMessage = JsonSerializer.Serialize(message, SerializationContext.Default.ClientSendableMessageBase);
 
         var messageBytes = Encoding.UTF8.GetBytes(serializedMessage);
 
@@ -248,30 +297,5 @@ public sealed class RealtimeConversationProcessor(
             endOfMessage: true,
             cancellationToken
         ).ConfigureAwait(false);
-    }
-
-    private async Task SendAudioToServiceViaWorkaroundAsync(ArraySegment<byte> audioSegment, CancellationToken cancellationToken = default)
-    {
-        if (_session is null)
-        {
-            throw new InvalidOperationException(
-                "Internal error: attempting to send audio to service with no active session");
-        }
-
-        var base64Audio = Convert.ToBase64String(audioSegment);
-        var audioBody = BinaryData.FromString($$"""
-            {
-                "type": "input_audio_buffer.append",
-                "audio": "{{base64Audio}}"
-            }
-            """);
-
-        var cancellationOptions = new RequestOptions()
-        {
-            CancellationToken = cancellationToken,
-        };
-
-        await _session.SendCommandAsync(audioBody, cancellationOptions)
-            .ConfigureAwait(false);
     }
 }

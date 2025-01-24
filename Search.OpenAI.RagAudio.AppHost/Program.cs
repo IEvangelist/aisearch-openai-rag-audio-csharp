@@ -1,5 +1,7 @@
 ﻿var builder = DistributedApplication.CreateBuilder(args);
 
+
+
 var openai = builder.ExecutionContext.IsPublishMode
     ? builder.AddAzureOpenAI("openai")
             .AddDeployment(deployment: new AzureOpenAIDeployment(
@@ -16,9 +18,5 @@ var api = builder.AddProject<Projects.Search_OpenAI_RagAudio_WebAPI>("api")
 var frontend = builder.AddProject<Projects.Search_OpenAI_RagAudio>("frontend")
     .WithReference(api)
     .WaitFor(api);
-
-builder.Eventing.Subscribe(
-    frontend.Resource,
-    AppEvents.BeforeFrontendStarted);
 
 builder.Build().Run();
