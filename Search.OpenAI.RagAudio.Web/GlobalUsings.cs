@@ -1,0 +1,25 @@
+﻿global using System.Buffers;
+global using System.ComponentModel.DataAnnotations;
+global using System.IO.Pipelines;
+global using System.Net.WebSockets;
+global using System.Text;
+global using System.Text.Json;
+
+global using Azure;
+global using Azure.AI.OpenAI;
+
+global using Microsoft.AspNetCore.Components;
+global using Microsoft.Extensions.Options;
+global using Microsoft.JSInterop;
+
+global using OpenAI.RealtimeConversation;
+
+global using Search.OpenAI.RagAudio.Web.Components;
+global using Search.OpenAI.RagAudio.Web.Components.Shared;
+global using Search.OpenAI.RagAudio.Web.Extensions;
+global using Search.OpenAI.RagAudio.Web.Models;
+global using Search.OpenAI.RagAudio.Web.Options;
+global using Search.OpenAI.RagAudio.Web.Realtime;
+global using Search.OpenAI.RagAudio.Web.Services;
+global using Search.OpenAI.Shared.Messages;
+global using Search.OpenAI.Shared.Serialization;

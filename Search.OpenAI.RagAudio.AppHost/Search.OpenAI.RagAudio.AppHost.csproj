@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Search.OpenAI.RagAudio.WebAPI\Search.OpenAI.RagAudio.WebAPI.csproj" />
+    <ProjectReference Include="..\Search.OpenAI.RagAudio.Web\Search.OpenAI.RagAudio.Web.csproj" />
     <ProjectReference Include="..\Search.OpenAI.RagAudio\Search.OpenAI.RagAudio.csproj" />
   </ItemGroup>
 

@@ -32,10 +32,11 @@ public sealed class WebSocketService(
             var buffer = new ArraySegment<byte>(new byte[BufferSize]);
             var bytesReceived = 0;
 
-            while (!cancellationToken.IsCancellationRequested && _client is { State: WebSocketState.Open })
-            {
-                var result = await _client.ReceiveAsync(buffer, cancellationToken);
+            var result = await _client.ReceiveAsync(buffer, cancellationToken)
+                .ConfigureAwait(false);
 
+            while (!cancellationToken.IsCancellationRequested && !result.CloseStatus.HasValue)
+            {
                 // Handle text messages...
                 if (result.MessageType is WebSocketMessageType.Text)
                 {
@@ -69,6 +70,8 @@ public sealed class WebSocketService(
 
                         Array.Copy(buffer.Array!, buffer.Offset, audioBytes, 0, finalResult.Count);
 
+                        logger.LogInformation("Web API to Blazor, received audio {Bytes:0,0} bytes.", audioBytes.Length);
+
                         await handler.OnWebSocketAudioAsync(audioBytes);
                     }
                     else
@@ -83,6 +86,9 @@ public sealed class WebSocketService(
                 {
                     break;
                 }
+
+                result = await _client.ReceiveAsync(buffer, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
         catch (Exception exception)

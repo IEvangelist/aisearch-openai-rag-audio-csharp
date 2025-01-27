@@ -1,5 +1,7 @@
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddServiceDefaults();
+
 builder.Services.AddOpenApi();
 builder.Services.AddRealtimeServices(builder.Configuration);
 
@@ -41,6 +43,8 @@ builder.Services.AddScoped(provider =>
 //});
 
 var app = builder.Build();
+
+app.MapDefaultEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Search.OpenAI.RagAudio.ServiceDefaults\Search.OpenAI.RagAudio.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Search.OpenAI.Shared\Search.OpenAI.Shared.csproj" />
   </ItemGroup>
 

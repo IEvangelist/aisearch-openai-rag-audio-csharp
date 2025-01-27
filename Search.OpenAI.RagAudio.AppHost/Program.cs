@@ -1,7 +1,5 @@
 ﻿var builder = DistributedApplication.CreateBuilder(args);
 
-
-
 var openai = builder.ExecutionContext.IsPublishMode
     ? builder.AddAzureOpenAI("openai")
             .AddDeployment(deployment: new AzureOpenAIDeployment(
@@ -11,12 +9,8 @@ var openai = builder.ExecutionContext.IsPublishMode
             )
     : builder.AddConnectionString("openai");
 
-var api = builder.AddProject<Projects.Search_OpenAI_RagAudio_WebAPI>("api")
+builder.AddProject<Projects.Search_OpenAI_RagAudio_Web>("blazor-server-side")
     .WithReference(openai)
     .WithAzureEnvironmentVariables();
-
-var frontend = builder.AddProject<Projects.Search_OpenAI_RagAudio>("frontend")
-    .WithReference(api)
-    .WaitFor(api);
 
 builder.Build().Run();

@@ -30,8 +30,6 @@ public sealed class RealtimeConversationProcessor(
             )
             .ConfigureAwait(false);
 
-        logger.LogInformation("Sent greeting message.");
-
         await Task.WhenAny(
             HandleMessagesFromClientAsync(clientWebSocket, cancellationToken),
             HandleUpdatesFromServiceAsync(clientWebSocket, cancellationToken));
@@ -47,8 +45,9 @@ public sealed class RealtimeConversationProcessor(
 
         var sessionOptions = new ConversationSessionOptions()
         {
-            Voice = ConversationVoice.Echo,
+            Voice = ConversationVoice.Shimmer,
             TurnDetectionOptions = ConversationTurnDetectionOptions.CreateServerVoiceActivityTurnDetectionOptions(),
+            ContentModalities = ConversationContentModalities.Audio,
             InputTranscriptionOptions = new()
             {
                 Model = "whisper-1",
@@ -78,31 +77,31 @@ public sealed class RealtimeConversationProcessor(
                 "Internal error: attempting to start client WebSocket loop without an active session");
         }
 
-        var receiveResult = await clientWebSocket.ReceiveAsync(_webSocketReceiveBuffer, cancellationToken)
+        var result = await clientWebSocket.ReceiveAsync(_webSocketReceiveBuffer, cancellationToken)
             .ConfigureAwait(false);
 
         await _session.StartResponseAsync(cancellationToken).ConfigureAwait(false);
 
-        while (!receiveResult.CloseStatus.HasValue)
+        while (!result.CloseStatus.HasValue)
         {
             // Handle client-sent audio bytes.
-            if (receiveResult is { MessageType: WebSocketMessageType.Binary })
+            if (result.MessageType is WebSocketMessageType.Binary)
             {
-                var audioBytesFromClient = new ArraySegment<byte>(_webSocketReceiveBuffer, 0, receiveResult.Count);
+                var audioBytesFromClient = new ArraySegment<byte>(_webSocketReceiveBuffer, 0, result.Count);
 
                 await _session.SendInputAudioAsync(
                         BinaryData.FromBytes(audioBytesFromClient),
                         cancellationToken
                     )
                     .ConfigureAwait(false);
+
+                logger.LogInformation("Forwarded audio {Bytes:0,0} to OpenAI.", result.Count);
             }
-            else // Handle client-sent text-based messages.
+
+            // Handle client-sent text-based messages.
+            if (result.MessageType is WebSocketMessageType.Text)
             {
-                logger.LogInformation("Received non-audio message from the client.");
-
-                var rawMessageFromClient = Encoding.UTF8.GetString(_webSocketReceiveBuffer, 0, receiveResult.Count);
-
-                logger.LogInformation("Raw client message: {Msg}", rawMessageFromClient);
+                var rawMessageFromClient = Encoding.UTF8.GetString(_webSocketReceiveBuffer, 0, result.Count);
 
                 var clientMessage = JsonSerializer.Deserialize(
                     rawMessageFromClient, SerializationContext.Default.ClientReceivableMessageBase);
@@ -124,7 +123,12 @@ public sealed class RealtimeConversationProcessor(
                 }
             }
 
-            receiveResult = await clientWebSocket.ReceiveAsync(_webSocketReceiveBuffer, cancellationToken)
+            if (result.MessageType is WebSocketMessageType.Close)
+            {
+                break;
+            }
+
+            result = await clientWebSocket.ReceiveAsync(_webSocketReceiveBuffer, cancellationToken)
                 .ConfigureAwait(false);
         }
     }
@@ -182,55 +186,64 @@ public sealed class RealtimeConversationProcessor(
                         transcription,
                         cancellationToken),
 
-                _ => Task.CompletedTask
+                _ => ValueTask.CompletedTask
             };
 
             await updateTask;
         }
     }
 
-    private static async Task OnConversationStartedAsync(WebSocket clientWebSocket, ConversationSessionStartedUpdate conversationSessionStarted, CancellationToken cancellationToken)
+    private static ValueTask OnConversationStartedAsync(WebSocket clientWebSocket, ConversationSessionStartedUpdate conversationSessionStarted, CancellationToken cancellationToken)
     {
-        await SendMessageToClientAsync(
-                clientWebSocket,
-                new ClientSendableControlMessage("Conversation started..."),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
+        return ValueTask.CompletedTask;
+
+        // await SendMessageToClientAsync(
+        //         clientWebSocket,
+        //         new ClientSendableControlMessage("Conversation started..."),
+        //         cancellationToken
+        //     )
+        //     .ConfigureAwait(false);
     }
 
-    private static async Task OnSpeechStartedAsync(WebSocket clientWebSocket, ConversationInputSpeechStartedUpdate speechStarted, CancellationToken cancellationToken)
+    private static ValueTask OnSpeechStartedAsync(WebSocket clientWebSocket, ConversationInputSpeechStartedUpdate speechStarted, CancellationToken cancellationToken)
     {
-        await SendMessageToClientAsync(
-                clientWebSocket,
-                new ClientSendableControlMessage("Speech started..."),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
+        return ValueTask.CompletedTask;
+
+        // await SendMessageToClientAsync(
+        //         clientWebSocket,
+        //         new ClientSendableControlMessage("Speech started..."),
+        //         cancellationToken
+        //     )
+        //     .ConfigureAwait(false);
     }
 
-    private static async Task OnSpeechFinishedAsync(WebSocket clientWebSocket, ConversationInputSpeechFinishedUpdate speechFinished, CancellationToken cancellationToken)
+    private async ValueTask OnSpeechFinishedAsync(WebSocket clientWebSocket, ConversationInputSpeechFinishedUpdate speechFinished, CancellationToken cancellationToken)
     {
-        await SendMessageToClientAsync(
-                clientWebSocket,
-                new ClientSendableControlMessage("Speech finished..."),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
+        await _session!.StartResponseAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task OnStreamingOutputDeltaAsync(WebSocket clientWebSocket, ConversationItemStreamingPartDeltaUpdate outputDelta, StringBuilder transcription, CancellationToken cancellationToken)
+    private async ValueTask OnStreamingOutputDeltaAsync(WebSocket clientWebSocket, ConversationItemStreamingPartDeltaUpdate outputDelta, StringBuilder transcription, CancellationToken cancellationToken)
     {
-        var text = outputDelta.Text ?? outputDelta.AudioTranscript;
-
-        transcription.Append(text);
-
-        logger.LogInformation("Appended text to transcription buffer: {Item}", text);
-
-        if (outputDelta.AudioBytes is not null)
+        if (!string.IsNullOrEmpty(outputDelta.Text))
         {
+            transcription.Append(outputDelta.Text);
+            logger.LogInformation("Appended text to transcription buffer: {Item}", outputDelta.Text);
+        }
+
+        if (!string.IsNullOrEmpty(outputDelta.AudioTranscript))
+        {
+            transcription.Append(outputDelta.AudioTranscript);
+            logger.LogInformation("Appended audio-text to transcription buffer: {Item}", outputDelta.AudioTranscript);
+        }   
+
+        if (outputDelta.AudioBytes is { } bytes)
+        {
+            var audioBytes = bytes.ToArray();
+
+            logger.LogInformation("Sending audio bytes: {Length}", audioBytes.Length);
+
             await clientWebSocket.SendAsync(
-                    outputDelta.AudioBytes.ToArray(),
+                    audioBytes,
                     WebSocketMessageType.Binary,
                     endOfMessage: true,
                     cancellationToken
@@ -239,7 +252,7 @@ public sealed class RealtimeConversationProcessor(
         }
     }
 
-    private async Task OnStreamingFinishedAsync(ConversationItemStreamingFinishedUpdate itemFinished, CancellationToken cancellationToken)
+    private async ValueTask OnStreamingFinishedAsync(ConversationItemStreamingFinishedUpdate itemFinished, CancellationToken cancellationToken)
     {
         logger.LogInformation("Item finished: {Item}", itemFinished);
 
@@ -252,7 +265,7 @@ public sealed class RealtimeConversationProcessor(
         }
     }
 
-    private async Task OnResponseFinishedAsync(ConversationResponseFinishedUpdate responseFinished, CancellationToken cancellationToken)
+    private async ValueTask OnResponseFinishedAsync(ConversationResponseFinishedUpdate responseFinished, CancellationToken cancellationToken)
     {
         logger.LogInformation("Response finished: {Item}", responseFinished);
 
@@ -263,24 +276,26 @@ public sealed class RealtimeConversationProcessor(
         }
     }
 
-    private async Task OnStreamingTextTranscriptionFinishedAsync(WebSocket clientWebSocket, StringBuilder transcription, CancellationToken cancellationToken)
+    private ValueTask OnStreamingTextTranscriptionFinishedAsync(WebSocket clientWebSocket, StringBuilder transcription, CancellationToken cancellationToken)
     {
-        var text = transcription.ToString();
+        return ValueTask.CompletedTask;
 
-        logger.LogInformation("Transcription finished: {Item}", text);
-
-        var message = new ClientSendableTranscriptionMessage("transcription", text);
-
-        transcription.Clear();
-
-        await SendMessageToClientAsync(clientWebSocket, message,cancellationToken)
-            .ConfigureAwait(false);        
+        // var text = transcription.ToString();
+        // 
+        // logger.LogInformation("Transcription finished: {Item}", text);
+        // 
+        // var message = new ClientSendableTranscriptionMessage("transcription", text);
+        // 
+        // transcription.Clear();
+        // 
+        // await SendMessageToClientAsync(clientWebSocket, message,cancellationToken)
+        //     .ConfigureAwait(false);        
     }
 
     /// <summary>
     /// A helper that serializes and transmits a simplified protocol message that can be sent to a frontend client.
     /// </summary>
-    private static async Task SendMessageToClientAsync<TMessage>(
+    private static async ValueTask SendMessageToClientAsync<TMessage>(
         WebSocket clientWebSocket,
         TMessage message,
         CancellationToken cancellationToken = default) where TMessage : ClientSendableMessageBase
@@ -292,10 +307,11 @@ public sealed class RealtimeConversationProcessor(
         var messageBytes = Encoding.UTF8.GetBytes(serializedMessage);
 
         await clientWebSocket.SendAsync(
-            messageBytes,
-            WebSocketMessageType.Text,
-            endOfMessage: true,
-            cancellationToken
-        ).ConfigureAwait(false);
+                messageBytes,
+                WebSocketMessageType.Text,
+                endOfMessage: true,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 }
