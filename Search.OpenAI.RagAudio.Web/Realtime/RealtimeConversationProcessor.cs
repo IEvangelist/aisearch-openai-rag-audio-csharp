@@ -20,7 +20,7 @@ public sealed class RealtimeConversationProcessor(
     {
         _session ??= await GetRealtimeConversationSessionAsync(cancellationToken);
 
-        logger.LogInformation("Client connected to the realtime server.");
+        logger.LogInformation("Client connected to the real-time server.");
 
         _ = Task.Run(async () => await ProcessConversationAsync(handler, cancellationToken), cancellationToken);
     }
@@ -60,17 +60,27 @@ public sealed class RealtimeConversationProcessor(
 
         if (_session is null)
         {
-            throw new InvalidOperationException($"Internal error: attempting to start service session loop without a client WebSocket");
+            throw new InvalidOperationException(
+                $"Internal error: '_session' is null.");
         }
-
 
         var transcription = new StringBuilder();
 
+        // We'll start a task that gets the client's voice input to send to OpenAI.
         var sendAudioTask = SendAudioInputAsync(handler, cancellationToken);
+
+        // The bot will greet us immediately upon connecting.
         var startResponseTask = _session.StartResponseAsync(cancellationToken);
+
+        // Starts the process of registering the callers handlers and transcription listeners.
         var handleResponsesTask = HandleResponseAsync(handler, transcription, cancellationToken);
 
-        await Task.WhenAll(sendAudioTask, startResponseTask, handleResponsesTask).ConfigureAwait(false);
+        await Task.WhenAll(tasks: [
+                sendAudioTask,
+                startResponseTask,
+                handleResponsesTask
+            ])
+            .ConfigureAwait(false);
     }
 
     private async Task SendAudioInputAsync(IRealtimeConversationHandler handler, CancellationToken cancellationToken)
@@ -120,9 +130,9 @@ public sealed class RealtimeConversationProcessor(
         }
     }
 
-    private async ValueTask OnSpeechFinishedAsync(ConversationInputSpeechFinishedUpdate speechFinished, CancellationToken cancellationToken)
+    private ValueTask OnSpeechFinishedAsync(ConversationInputSpeechFinishedUpdate speechFinished, CancellationToken cancellationToken)
     {
-        await _session!.StartResponseAsync(cancellationToken).ConfigureAwait(false);
+        return ValueTask.CompletedTask;
     }
 
     private async ValueTask OnStreamingOutputDeltaAsync(IRealtimeConversationHandler handler, ConversationItemStreamingPartDeltaUpdate outputDelta, StringBuilder transcription, CancellationToken cancellationToken)
@@ -137,12 +147,76 @@ public sealed class RealtimeConversationProcessor(
         {
             transcription.Append(outputDelta.AudioTranscript);
             logger.LogInformation("Appended audio-text to transcription buffer: {Item}", outputDelta.AudioTranscript);
-        }   
+        }
 
         if (outputDelta.AudioBytes is { } bytes)
         {
             var audioBytes = bytes.ToArray();
-            await handler.OnPlayAudioAsync(audioBytes);
+            await handler.OnAudioReceivedAsync(audioBytes);
+        }
+
+        switch (outputDelta.Kind)
+        {
+            case ConversationUpdateKind.Unknown:
+                break;
+            case ConversationUpdateKind.SessionStarted:
+                break;
+            case ConversationUpdateKind.SessionConfigured:
+                break;
+            case ConversationUpdateKind.ItemCreated:
+                break;
+            case ConversationUpdateKind.ConversationCreated:
+                break;
+            case ConversationUpdateKind.ItemDeleted:
+                break;
+            case ConversationUpdateKind.ItemTruncated:
+                break;
+            case ConversationUpdateKind.ResponseStarted:
+                break;
+            case ConversationUpdateKind.ResponseFinished:
+                break;
+            case ConversationUpdateKind.RateLimitsUpdated:
+                break;
+            case ConversationUpdateKind.ItemStreamingStarted:
+                break;
+            case ConversationUpdateKind.ItemStreamingFinished:
+                break;
+            case ConversationUpdateKind.ItemContentPartStarted:
+                break;
+            case ConversationUpdateKind.ItemContentPartFinished:
+                break;
+            case ConversationUpdateKind.ItemStreamingPartAudioDelta:
+                break;
+            case ConversationUpdateKind.ItemStreamingPartAudioFinished:
+                break;
+            case ConversationUpdateKind.ItemStreamingPartAudioTranscriptionDelta:
+                break;
+            case ConversationUpdateKind.ItemStreamingPartAudioTranscriptionFinished:
+                break;
+            case ConversationUpdateKind.ItemStreamingPartTextDelta:
+                break;
+            case ConversationUpdateKind.ItemStreamingPartTextFinished:
+                break;
+            case ConversationUpdateKind.ItemStreamingFunctionCallArgumentsDelta:
+                break;
+            case ConversationUpdateKind.ItemStreamingFunctionCallArgumentsFinished:
+                break;
+            case ConversationUpdateKind.InputSpeechStarted:
+                break;
+            case ConversationUpdateKind.InputSpeechStopped:
+                break;
+            case ConversationUpdateKind.InputTranscriptionFinished:
+                break;
+            case ConversationUpdateKind.InputTranscriptionFailed:
+                break;
+            case ConversationUpdateKind.InputAudioCommitted:
+                break;
+            case ConversationUpdateKind.InputAudioCleared:
+                break;
+            case ConversationUpdateKind.Error:
+                break;
+            default:
+                break;
         }
     }
 
@@ -164,6 +238,6 @@ public sealed class RealtimeConversationProcessor(
 
     private ValueTask OnStreamingTextTranscriptionFinishedAsync(StringBuilder transcription, CancellationToken cancellationToken)
     {
-        return ValueTask.CompletedTask;     
+        return ValueTask.CompletedTask;
     }
 }

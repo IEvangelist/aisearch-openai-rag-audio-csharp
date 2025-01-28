@@ -18,6 +18,8 @@ public sealed partial class Home(
     private Speaker? _speaker;
     private PipeReader? _microphoneInput;
 
+    private RealtimeStatus _status;
+
     private void OnMicrophoneAvailable(PipeReader microphoneInput)
     {
         _microphoneInput = microphoneInput;
@@ -36,19 +38,17 @@ public sealed partial class Home(
         {
             try
             {
+                await _cancellationTokenSource.CancelAsync();
+                _cancellationTokenSource = new();
+
                 if (_isListening)
                 {
-                    await _cancellationTokenSource.CancelAsync();
-
                     await _speaker.ClearPlaybackAsync();
 
                     _isListening = false;
                 }
                 else
                 {
-                    await _cancellationTokenSource.CancelAsync();
-                    _cancellationTokenSource = new();
-
                     await _microphone.StartAsync();
 
                     await StartSessionAsync();
@@ -74,62 +74,17 @@ public sealed partial class Home(
     }
 
     Task IRealtimeConversationHandler.OnConversationUpdateAsync(ConversationUpdate? conversation) =>
-        InvokeAsync(async () =>
+        InvokeAsync(() =>
         {
             if (conversation is null)
             {
                 return;
             }
 
-            //if (message is ClientSendableControlMessage control)
-            //{
-            //    _control = control.Action;
-            //}
-
-            //if (message is ClientSendableTextDeltaMessage delta)
-            //{
-            //}
-
-            //if (message is ClientSendableSpeechStartedMessage started)
-            //{
-            //    await (_speaker?.ClearPlaybackAsync() ?? Task.CompletedTask);
-
-            //    _message = started.Message;
-            //}
-
-            //if (message is ClientSendableConnectedMessage greeting)
-            //{
-            //    _message = greeting.Greeting;
-            //}
-
-            //if (message is ClientSendableTranscriptionMessage transcript)
-            //{
-            //    _transcript.Add(transcript.Transcription);
-            //}
-
-            //if (message is ExtensionMiddleTierToolResponse toolResponse)
-            //{
-            //    var result = JsonSerializer.Deserialize(
-            //        toolResponse.ToolResult, SerializationContext.Default.ToolResult);
-
-            //    if (result is null)
-            //    {
-            //        return;
-            //    }
-
-            //    _groundingFiles = [
-            //        ..result.Sources.Select(
-            //            static source => new GroundingFile(
-            //                Id: source.ChunkId,
-            //                Name: source.Title,
-            //                Content: source.Chunk))
-            //    ];
-            //}
-
-            StateHasChanged();
+            _ = conversation;
         });
 
-    Task IRealtimeConversationHandler.OnPlayAudioAsync(byte[] audioBytes) =>
+    Task IRealtimeConversationHandler.OnAudioReceivedAsync(byte[] audioBytes) =>
         InvokeAsync(async () =>
         {
             if (_speaker is not null)
@@ -156,5 +111,19 @@ public sealed partial class Home(
 
         return _microphoneInput!;
     }
+
+    Task IRealtimeConversationHandler.OnTranscriptReadyAsync(string transcript) => InvokeAsync(() =>
+    {
+        _transcript.Add(transcript);
+
+        StateHasChanged();
+    });
+
+    Task IRealtimeConversationHandler.OnConversationStatusAsync(RealtimeStatus status) => InvokeAsync(() =>
+    {
+        _status = status;
+
+        StateHasChanged();
+    });
 }
 

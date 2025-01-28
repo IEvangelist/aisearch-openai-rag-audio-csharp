@@ -32,6 +32,7 @@ internal static class RealtimeServiceCollectionExtensions
 
         services.AddLocalStorageServices();
         services.AddScoped<MicrophoneSignal>();
+        services.AddScoped<AppJSModule>();
 
         return services;
     }

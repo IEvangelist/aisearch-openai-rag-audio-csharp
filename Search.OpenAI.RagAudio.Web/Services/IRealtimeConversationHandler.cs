@@ -4,7 +4,11 @@ public interface IRealtimeConversationHandler
 {
     public Task OnConversationUpdateAsync(ConversationUpdate? conversation);
 
-    public Task OnPlayAudioAsync(byte[] audioBytes);
+    public Task OnAudioReceivedAsync(byte[] audioBytes);
+
+    public Task OnTranscriptReadyAsync(string transcript);
+
+    public Task OnConversationStatusAsync(RealtimeStatus status);
 
     public Task<PipeReader> GetAudioReaderAsync(CancellationToken cancellationToken);
 }

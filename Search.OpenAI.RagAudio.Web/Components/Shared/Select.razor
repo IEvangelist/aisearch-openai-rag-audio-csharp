@@ -1,0 +1,46 @@
+﻿@typeparam TItem where TItem : IOptionValue
+
+<div class="py-2">
+    <label for="headline-@(_id)" class="block text-sm font-medium text-gray-900 dark:text-gray-300">
+        @Headline
+    </label>
+
+    <select name="headline" id="headline-@(_id)"
+            @bind="_selected" @onclick="@(async () => await OnUserSelected())"
+            class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:bg-gray-600 dark:text-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        @foreach (var option in Options)
+        {
+            <option value="@option.Value" class="text text-black dark:text-gray-200" selected="@option.IsDefault">
+                @option.Name
+            </option>
+        }
+    </select>
+</div>
+
+@code {
+    private string _id = Guid.NewGuid().ToString();
+    private string? _selected;
+
+    [Parameter, EditorRequired]
+    public required string Headline { get; set; }
+
+    [Parameter, EditorRequired]
+    public required TItem[] Options { get; set; }
+
+    [Parameter, EditorRequired]
+    public required EventCallback<TItem> OnSelected { get; set; }
+
+    private Task OnUserSelected() => InvokeAsync(async () =>
+    {
+        if (!OnSelected.HasDelegate)
+        {
+            return;
+        }
+
+        var selectedOption = Options.FirstOrDefault(o => o.Value == _selected);
+
+        await OnSelected.InvokeAsync(selectedOption);
+
+        StateHasChanged();
+    });
+}
