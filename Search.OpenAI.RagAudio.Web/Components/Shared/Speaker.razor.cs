@@ -1,6 +1,6 @@
 ﻿namespace Search.OpenAI.RagAudio.Web.Components.Shared;
 
-public sealed partial class Speaker(IJSRuntime js, ILogger<Speaker> logger)
+public sealed partial class Speaker(ILocalStorageService localStorage, IJSRuntime js, ILogger<Speaker> logger)
 {
     private IJSObjectReference? _module;
     private IJSObjectReference? _speaker;
@@ -40,7 +40,9 @@ public sealed partial class Speaker(IJSRuntime js, ILogger<Speaker> logger)
 
         if (_speaker is null)
         {
-            _speaker = await _module.InvokeAsync<IJSObjectReference>("start");
+            var deviceId = await localStorage.GetItemAsync<string>("speaker");
+
+            _speaker = await _module.InvokeAsync<IJSObjectReference>("start", deviceId);
 
             logger.LogInformation("Initialized speaker object.");
 

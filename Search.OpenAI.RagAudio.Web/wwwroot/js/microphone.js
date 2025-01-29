@@ -1,4 +1,4 @@
-﻿export async function start(component) {
+﻿export async function start(component, deviceId) {
     try {
         // Prompt user for access.
         await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
@@ -12,13 +12,22 @@
             console.log('Microphone:', mic);
         });
 
-        const defaultDevice = microphones.find(device => device.deviceId === 'default');
-        console.log(`Using '${defaultDevice.label}' microphone.`);
+        // Prioritize the passed deviceId, fallback to the default microphone
+        const selectedDevice = deviceId 
+            ? microphones.find(device => device.deviceId === deviceId) 
+            : microphones.find(device => device.deviceId === 'default');
 
+        if (!selectedDevice) {
+            throw new Error(`Microphone with deviceId '${deviceId || 'default'}' not found.`);
+        }
+
+        console.log(`Using '${selectedDevice.label}' microphone.`);
+
+        // Obtain the microphone stream using the selected device
         const microphoneStream = await navigator.mediaDevices.getUserMedia({
             video: false,
             audio: {
-                deviceId: defaultDevice.deviceId,
+                deviceId: { exact: selectedDevice.deviceId }, // Use exact deviceId
                 sampleRate: 16000
             }
         });
@@ -49,7 +58,7 @@ async function processMicrophoneData(micStream, component) {
     const workletNode = new AudioWorkletNode(audioCtx, 'sendAudioDataWorklet', {});
     micStreamSource.connect(workletNode);
     workletNode.port.onmessage = async (e) => {
-        // We get float32, but need int16
+        // Convert float32 to int16
         const float32Samples = e.data[0];
         const numSamples = float32Samples.length;
         const int16Samples = new Int16Array(numSamples);

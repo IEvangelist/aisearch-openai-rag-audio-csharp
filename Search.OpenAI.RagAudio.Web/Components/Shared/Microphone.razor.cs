@@ -1,6 +1,6 @@
 ﻿namespace Search.OpenAI.RagAudio.Web.Components.Shared;
 
-public sealed partial class Microphone(IJSRuntime js, ILogger<Microphone> logger)
+public sealed partial class Microphone(ILocalStorageService localStorage, IJSRuntime js, ILogger<Microphone> logger)
 {
     private readonly SemaphoreSlim _writeAudioSemaphore = new(1);
     private readonly Pipe _microphonePipe = new();
@@ -37,7 +37,9 @@ public sealed partial class Microphone(IJSRuntime js, ILogger<Microphone> logger
 
         if (_microphone is null)
         {
-            _microphone = await _module.InvokeAsync<IJSObjectReference>("start", DotNetObjectReference.Create(this));
+            var deviceId = await localStorage.GetItemAsync<string>("microphone");
+
+            _microphone = await _module.InvokeAsync<IJSObjectReference>("start", DotNetObjectReference.Create(this), deviceId);
 
             logger.LogInformation("Initialized microphone object.");
         }
