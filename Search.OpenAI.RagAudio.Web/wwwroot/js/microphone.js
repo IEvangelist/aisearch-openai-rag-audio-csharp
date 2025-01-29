@@ -1,4 +1,10 @@
-﻿export async function start(component, deviceId) {
+﻿let audioCtx;
+let micStreamSource;
+let workletNode;
+
+export async function start(component, deviceId) {
+    console.log(`Starting microphone with device: ${deviceId}`);
+
     try {
         // Prompt user for access.
         await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
@@ -13,8 +19,8 @@
         });
 
         // Prioritize the passed deviceId, fallback to the default microphone
-        const selectedDevice = deviceId 
-            ? microphones.find(device => device.deviceId === deviceId) 
+        const selectedDevice = deviceId
+            ? microphones.find(device => device.deviceId === deviceId)
             : microphones.find(device => device.deviceId === 'default');
 
         if (!selectedDevice) {
@@ -27,8 +33,8 @@
         const microphoneStream = await navigator.mediaDevices.getUserMedia({
             video: false,
             audio: {
-                deviceId: { exact: selectedDevice.deviceId }, // Use exact deviceId
-                sampleRate: 16000
+                deviceId: selectedDevice.deviceId,
+                sampleRate: 24000
             }
         });
 
@@ -40,9 +46,9 @@
     }
 }
 
-async function processMicrophoneData(micStream, component) {
-    const audioCtx = new AudioContext({ sampleRate: 24000 });
-    const micStreamSource = audioCtx.createMediaStreamSource(micStream);
+async function processMicrophoneData(microphoneStream, component) {
+    audioCtx = new AudioContext({ sampleRate: 24000 });
+    micStreamSource = audioCtx.createMediaStreamSource(microphoneStream);
 
     const workletBlobUrl = URL.createObjectURL(new Blob([`
         registerProcessor('sendAudioDataWorklet', class param extends AudioWorkletProcessor {
@@ -55,7 +61,7 @@ async function processMicrophoneData(micStream, component) {
         `],
         { type: 'application/javascript' }));
     await audioCtx.audioWorklet.addModule(workletBlobUrl);
-    const workletNode = new AudioWorkletNode(audioCtx, 'sendAudioDataWorklet', {});
+    workletNode = new AudioWorkletNode(audioCtx, 'sendAudioDataWorklet', {});
     micStreamSource.connect(workletNode);
     workletNode.port.onmessage = async (e) => {
         // Convert float32 to int16
@@ -70,4 +76,26 @@ async function processMicrophoneData(micStream, component) {
     }
 
     await component.invokeMethodAsync('OnMicConnectedAsync');
+}
+
+export function stop() {
+    console.log('Stopping microphone');
+
+    if (workletNode) {
+        workletNode.port.close();
+        workletNode.disconnect();
+        workletNode = null;
+    }
+
+    if (micStreamSource) {
+        micStreamSource.disconnect();
+        micStreamSource = null;
+    }
+
+    if (audioCtx && audioCtx.state !== "closed") {
+        audioCtx.close();
+        audioCtx = null;
+    }
+
+    console.log('Microphone listening stopped.');
 }

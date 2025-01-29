@@ -45,6 +45,11 @@ public sealed partial class Microphone(ILocalStorageService localStorage, IJSRun
         }
     }
 
+    public async ValueTask StopAsync()
+    {
+        await (_module?.InvokeVoidAsync("stop") ?? ValueTask.CompletedTask);
+    }
+
     [JSInvokable]
     public Task OnMicConnectedAsync()
     {

@@ -3,9 +3,11 @@
 public sealed partial class NavMenu(ILocalStorageService localStorage, AppJSModule js)
 {
     private Dialog? _dialog;
+    private ElementReference? _audioElement;
 
     private string? _selectedMicrophone;
     private string? _selectedSpeaker;
+    private string? _selectedSpeakerLabel;
     private string? _selectedVoice;
 
     private MediaDeviceInfo[] _microphones = [];
@@ -23,13 +25,13 @@ public sealed partial class NavMenu(ILocalStorageService localStorage, AppJSModu
 
     private Task ShowOpenAIDialogAsync(MouseEventArgs args) => InvokeAsync(async () =>
     {
-        _ = args;
         _microphones = await js.GetClientMicrophonesAsync();
         _speakers = await js.GetClientSpeakersAsync();
 
-        _selectedMicrophone = await localStorage.GetItemAsync<string>("microphone");
-        _selectedSpeaker = await localStorage.GetItemAsync<string>("speaker");
-        _selectedVoice = await localStorage.GetItemAsync<string>("voice");
+        _selectedMicrophone = await localStorage.GetItemAsync<string>("microphone") ?? _microphones.FirstOrDefault()?.DeviceId;
+        _selectedSpeaker = await localStorage.GetItemAsync<string>("speaker") ?? _speakers.FirstOrDefault()?.DeviceId;
+        _selectedSpeakerLabel = _speakers.FirstOrDefault(s => s.DeviceId == _selectedSpeaker)?.Label;
+        _selectedVoice = await localStorage.GetItemAsync<string>("voice") ?? _voices.FirstOrDefault();
 
         _microphoneOptions = _microphones.ToOptionValues(m => m.DeviceId, m => m.Label, m => m.DeviceId == _selectedMicrophone);
         _speakerOptions = _speakers.ToOptionValues(s => s.DeviceId, s => s.Label, s => s.DeviceId == _selectedSpeaker);
@@ -46,14 +48,19 @@ public sealed partial class NavMenu(ILocalStorageService localStorage, AppJSModu
             ));
         }
 
+        if (_audioElement.HasValue && _selectedSpeaker is not null)
+        {
+            await js.SetAudioOutputAsync(_audioElement.Value, _selectedSpeaker);
+        }
+
         StateHasChanged();
     });
 
     private Task OnButtonClicked(DialogButtonChoice choice) => InvokeAsync(async () =>
     {
+        // Save settings when user selects "Save"
         if (choice is DialogButtonChoice.Primary)
         {
-            // Save settings
             await localStorage.SetItemAsync("microphone", _selectedMicrophone);
             await localStorage.SetItemAsync("speaker", _selectedSpeaker);
             await localStorage.SetItemAsync("voice", _selectedVoice);
@@ -69,9 +76,15 @@ public sealed partial class NavMenu(ILocalStorageService localStorage, AppJSModu
         StateHasChanged();
     });
 
-    private Task OnSpeakerSelected(IOptionValue speakerOption) => InvokeAsync(() =>
+    private Task OnSpeakerSelected(IOptionValue speakerOption) => InvokeAsync(async () =>
     {
         _selectedSpeaker = speakerOption?.Value;
+        _selectedSpeakerLabel = speakerOption?.Name;
+
+        if (_audioElement.HasValue && _selectedSpeaker is not null)
+        {
+            await js.SetAudioOutputAsync(_audioElement.Value, _selectedSpeaker);
+        }
 
         StateHasChanged();
     });

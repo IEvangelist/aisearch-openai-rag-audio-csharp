@@ -2,9 +2,7 @@
 
 public enum RealtimeStatus
 {
-    Started,
-    SpeechStarted,
-    SpeechFinished,
-    Responding,
-    TranscriptionReady
+    Unknown,
+    Conversating,
+    Error
 };

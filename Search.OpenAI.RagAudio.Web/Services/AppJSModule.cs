@@ -9,6 +9,13 @@ public sealed class AppJSModule(IJSRuntime js)
         _module ??= await js.InvokeAsync<IJSObjectReference>("import", "../js/app.js");
     }
 
+    internal async ValueTask SetAudioOutputAsync(ElementReference element, string deviceId)
+    {
+        await EnsureInitializeAsync();
+
+        await _module.InvokeVoidAsync("setAudioOutputDevice", element, deviceId);
+    }
+
     internal ValueTask<MediaDeviceInfo[]> GetClientSpeakersAsync()
     {
         return GetDevicesAsync("getClientSpeakers");

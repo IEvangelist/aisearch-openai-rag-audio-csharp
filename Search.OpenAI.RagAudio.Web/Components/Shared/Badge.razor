@@ -1,0 +1,35 @@
+﻿<span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 @GetColorClass()">
+    @IconContent
+
+    <code class="whitespace-nowrap text-sm">@Text</code>
+</span>
+
+@code {
+    [Parameter]
+    public RenderFragment? IconContent { get; set; }
+
+    [Parameter, EditorRequired]
+    public required string Text { get; set; }
+
+    [Parameter]
+    public BadgeColor Color { get; set; } = BadgeColor.Default;
+
+    private string GetColorClass()
+    {
+        return Color switch
+        {
+            BadgeColor.Default => "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200",
+            BadgeColor.Success => "bg-emerald-100 text-emerald-700 dark:bg-emerald-700 dark:text-emerald-100",
+            _ => "bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100"
+        };
+    }
+}
+
+@code {
+    public enum BadgeColor
+    {
+        Default,
+        Success,
+        Error,
+    }
+}

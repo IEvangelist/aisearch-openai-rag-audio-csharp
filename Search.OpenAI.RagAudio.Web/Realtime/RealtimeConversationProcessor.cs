@@ -1,9 +1,8 @@
 ﻿namespace Search.OpenAI.RagAudio.Web.Realtime;
 
-#pragma warning disable OPENAI002 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-
 public sealed class RealtimeConversationProcessor(
     AzureOpenAIClient client,
+    ILocalStorageService localStorage,
     IOptions<AzureOptions> options,
     ILogger<RealtimeConversationProcessor> logger) : IDisposable
 {
@@ -25,6 +24,18 @@ public sealed class RealtimeConversationProcessor(
         _ = Task.Run(async () => await ProcessConversationAsync(handler, cancellationToken), cancellationToken);
     }
 
+    private async ValueTask<ConversationVoice> TryGetPreferredVoiceAsync()
+    {
+        var preferredVoice = await localStorage.GetItemAsync<string>("voice");
+
+        return preferredVoice?.ToLower() switch
+        {
+            "echo" => ConversationVoice.Echo,
+            "shimmer" => ConversationVoice.Shimmer,
+            _ => ConversationVoice.Alloy
+        };
+    }
+
     private async Task<RealtimeConversationSession?> GetRealtimeConversationSessionAsync(CancellationToken cancellationToken)
     {
         var conversationClient = client.GetRealtimeConversationClient(
@@ -33,9 +44,11 @@ public sealed class RealtimeConversationProcessor(
         var session = await conversationClient.StartConversationSessionAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        var preferredVoice = await TryGetPreferredVoiceAsync();
+
         var sessionOptions = new ConversationSessionOptions()
         {
-            Voice = ConversationVoice.Shimmer,
+            Voice = preferredVoice,
             TurnDetectionOptions = ConversationTurnDetectionOptions.CreateServerVoiceActivityTurnDetectionOptions(),
             ContentModalities = ConversationContentModalities.Audio,
             InputTranscriptionOptions = new()
@@ -96,9 +109,9 @@ public sealed class RealtimeConversationProcessor(
     {
         await foreach (var update in _session!.ReceiveUpdatesAsync(cancellationToken).ConfigureAwait(false))
         {
-            await handler.OnConversationUpdateAsync(update);
-
-            var updateTask = update switch
+            var conversationUpdateTask = handler.OnConversationUpdateAsync(update);
+            var conversationStatusTask = handler.OnConversationStatusAsync(GetStatus(update.Kind));
+            var continuationTask = update switch
             {
                 ConversationItemStreamingPartDeltaUpdate outputDelta => OnStreamingOutputDeltaAsync(
                     handler,
@@ -106,36 +119,39 @@ public sealed class RealtimeConversationProcessor(
                     transcription,
                     cancellationToken),
 
-                ConversationItemStreamingFinishedUpdate itemFinished => OnStreamingFinishedAsync(
-                    itemFinished,
-                    cancellationToken),
-
                 ConversationResponseFinishedUpdate responseFinished => OnResponseFinishedAsync(
                     responseFinished,
                     cancellationToken),
 
-                ConversationInputSpeechFinishedUpdate speechFinished => OnSpeechFinishedAsync(
-                    speechFinished,
-                    cancellationToken),
-
                 ConversationItemStreamingAudioTranscriptionFinishedUpdate or ConversationItemStreamingTextFinishedUpdate =>
                     OnStreamingTextTranscriptionFinishedAsync(
+                        handler,
                         transcription,
                         cancellationToken),
 
-                _ => ValueTask.CompletedTask
+                _ => Task.CompletedTask
             };
 
-            await updateTask;
+            await Task.WhenAll(
+                    conversationUpdateTask,
+                    conversationStatusTask,
+                    continuationTask
+                )
+                .ConfigureAwait(false);
         }
     }
 
-    private ValueTask OnSpeechFinishedAsync(ConversationInputSpeechFinishedUpdate speechFinished, CancellationToken cancellationToken)
+    private static RealtimeStatus GetStatus(ConversationUpdateKind kind)
     {
-        return ValueTask.CompletedTask;
+        return kind switch
+        {
+            ConversationUpdateKind.Unknown => RealtimeStatus.Unknown,
+            ConversationUpdateKind.Error => RealtimeStatus.Error,
+            _ => RealtimeStatus.Conversating
+        };
     }
 
-    private async ValueTask OnStreamingOutputDeltaAsync(IRealtimeConversationHandler handler, ConversationItemStreamingPartDeltaUpdate outputDelta, StringBuilder transcription, CancellationToken cancellationToken)
+    private async Task OnStreamingOutputDeltaAsync(IRealtimeConversationHandler handler, ConversationItemStreamingPartDeltaUpdate outputDelta, StringBuilder transcription, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrEmpty(outputDelta.Text))
         {
@@ -154,78 +170,9 @@ public sealed class RealtimeConversationProcessor(
             var audioBytes = bytes.ToArray();
             await handler.OnAudioReceivedAsync(audioBytes);
         }
-
-        switch (outputDelta.Kind)
-        {
-            case ConversationUpdateKind.Unknown:
-                break;
-            case ConversationUpdateKind.SessionStarted:
-                break;
-            case ConversationUpdateKind.SessionConfigured:
-                break;
-            case ConversationUpdateKind.ItemCreated:
-                break;
-            case ConversationUpdateKind.ConversationCreated:
-                break;
-            case ConversationUpdateKind.ItemDeleted:
-                break;
-            case ConversationUpdateKind.ItemTruncated:
-                break;
-            case ConversationUpdateKind.ResponseStarted:
-                break;
-            case ConversationUpdateKind.ResponseFinished:
-                break;
-            case ConversationUpdateKind.RateLimitsUpdated:
-                break;
-            case ConversationUpdateKind.ItemStreamingStarted:
-                break;
-            case ConversationUpdateKind.ItemStreamingFinished:
-                break;
-            case ConversationUpdateKind.ItemContentPartStarted:
-                break;
-            case ConversationUpdateKind.ItemContentPartFinished:
-                break;
-            case ConversationUpdateKind.ItemStreamingPartAudioDelta:
-                break;
-            case ConversationUpdateKind.ItemStreamingPartAudioFinished:
-                break;
-            case ConversationUpdateKind.ItemStreamingPartAudioTranscriptionDelta:
-                break;
-            case ConversationUpdateKind.ItemStreamingPartAudioTranscriptionFinished:
-                break;
-            case ConversationUpdateKind.ItemStreamingPartTextDelta:
-                break;
-            case ConversationUpdateKind.ItemStreamingPartTextFinished:
-                break;
-            case ConversationUpdateKind.ItemStreamingFunctionCallArgumentsDelta:
-                break;
-            case ConversationUpdateKind.ItemStreamingFunctionCallArgumentsFinished:
-                break;
-            case ConversationUpdateKind.InputSpeechStarted:
-                break;
-            case ConversationUpdateKind.InputSpeechStopped:
-                break;
-            case ConversationUpdateKind.InputTranscriptionFinished:
-                break;
-            case ConversationUpdateKind.InputTranscriptionFailed:
-                break;
-            case ConversationUpdateKind.InputAudioCommitted:
-                break;
-            case ConversationUpdateKind.InputAudioCleared:
-                break;
-            case ConversationUpdateKind.Error:
-                break;
-            default:
-                break;
-        }
     }
 
-    private ValueTask OnStreamingFinishedAsync(ConversationItemStreamingFinishedUpdate itemFinished, CancellationToken cancellationToken)
-    {
-        return ValueTask.CompletedTask;
-    }
-
-    private async ValueTask OnResponseFinishedAsync(ConversationResponseFinishedUpdate responseFinished, CancellationToken cancellationToken)
+    private async Task OnResponseFinishedAsync(ConversationResponseFinishedUpdate responseFinished, CancellationToken cancellationToken)
     {
         logger.LogInformation("Response finished: {Item}", responseFinished);
 
@@ -236,8 +183,10 @@ public sealed class RealtimeConversationProcessor(
         }
     }
 
-    private ValueTask OnStreamingTextTranscriptionFinishedAsync(StringBuilder transcription, CancellationToken cancellationToken)
+    private async Task OnStreamingTextTranscriptionFinishedAsync(IRealtimeConversationHandler handler, StringBuilder transcription, CancellationToken cancellationToken)
     {
-        return ValueTask.CompletedTask;
+        await handler.OnTranscriptReadyAsync(transcription.ToString());
+
+        transcription.Clear();
     }
 }

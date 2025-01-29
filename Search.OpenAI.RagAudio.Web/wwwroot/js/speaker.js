@@ -1,25 +1,32 @@
 ﻿export async function start(deviceId) {
-    // Ensure the deviceId is used for the audio constraints
-    const stream = await navigator.mediaDevices.getUserMedia({
-        video: false,
-        audio: { 
-            sampleRate: 24000,
-            deviceId: deviceId ? { exact: deviceId } : undefined // Use deviceId if provided
-        }
-    });
+    await navigator.mediaDevices.getUserMedia({ video: false, audio: { sampleRate: 24000 } });
 
-    // Create an AudioContext with the desired sample rate
     const audioCtx = new AudioContext({ sampleRate: 24000 });
-
-    // Use the media stream as the input source
-    const inputSource = audioCtx.createMediaStreamSource(stream);
-
     const pendingSources = [];
     let currentPlaybackEndTime = 0;
 
+    // Create an audio destination node
+    const audioDestination = audioCtx.createMediaStreamDestination();
+
+    if (deviceId) {
+        try {
+            // Create an HTMLAudioElement for playback
+            const audioOutput = new Audio();
+            audioOutput.srcObject = audioDestination.stream;
+            audioOutput.autoplay = true; // Ensure it plays
+            audioOutput.muted = false; // Just in case
+            audioOutput.volume = 1.0;
+
+            await audioOutput.setSinkId(deviceId);
+            console.log(`Audio output set to device: ${deviceId}`);
+        } catch (err) {
+            console.warn(`Failed to set audio output device: ${err}`);
+        }
+    }
+
     return {
         enqueue(data) {
-            const bufferSource = toAudioBufferSource(audioCtx, data);
+            const bufferSource = toAudioBufferSource(audioCtx, data, audioDestination);
             pendingSources.push(bufferSource);
             bufferSource.onended = () => pendingSources.splice(pendingSources.indexOf(bufferSource), 1);
             currentPlaybackEndTime = Math.max(currentPlaybackEndTime, audioCtx.currentTime + 0.5);
@@ -35,7 +42,7 @@
     };
 }
 
-function toAudioBufferSource(audioCtx, data) {
+function toAudioBufferSource(audioCtx, data, audioDestination) {
     // Convert Int16Array to Float32Array
     const int16Samples = new Int16Array(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
     const numSamples = int16Samples.length;
@@ -53,7 +60,7 @@ function toAudioBufferSource(audioCtx, data) {
 
     const bufferSource = audioCtx.createBufferSource();
     bufferSource.buffer = audioBuffer;
-    bufferSource.connect(audioCtx.destination);
-    
+    bufferSource.connect(audioDestination); // Connect to the custom destination
+
     return bufferSource;
 }

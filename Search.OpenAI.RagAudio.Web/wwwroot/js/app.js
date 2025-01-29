@@ -1,4 +1,10 @@
-﻿export function getClientSpeakers() {
+﻿export async function setAudioOutputDevice(element, deviceId) {
+    if (deviceId && element && element.setSinkId) {
+        await element.setSinkId(deviceId);
+    }
+}
+
+export function getClientSpeakers() {
     return getDevices('audiooutput');
 }
 

@@ -5,10 +5,7 @@ public sealed partial class Home(
     MicrophoneSignal signal,
     ILogger<Home> logger) : IRealtimeConversationHandler
 {
-    private bool _isListening = false;
-    private string _message = "Start a conversation?";
-    private string _control = "";
-    private List<string> _transcript = [];
+    private readonly List<string> _transcript = [];
 
     private CancellationTokenSource _cancellationTokenSource = new();
     private GroundingFile? _selectedFile;
@@ -18,6 +15,7 @@ public sealed partial class Home(
     private Speaker? _speaker;
     private PipeReader? _microphoneInput;
 
+    private bool _isListening = false;
     private RealtimeStatus _status;
 
     private void OnMicrophoneAvailable(PipeReader microphoneInput)
@@ -44,13 +42,13 @@ public sealed partial class Home(
                 if (_isListening)
                 {
                     await _speaker.ClearPlaybackAsync();
+                    await _microphone.StopAsync();
 
                     _isListening = false;
                 }
                 else
                 {
                     await _microphone.StartAsync();
-
                     await StartSessionAsync();
 
                     _isListening = true;
