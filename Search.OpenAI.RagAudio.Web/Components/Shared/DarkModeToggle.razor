@@ -36,6 +36,6 @@
 
         await localStorage.SetItemAsync("theme", theme);
 
-        await _module.InvokeVoidAsync("setTheme", theme);
+        await (_module?.InvokeVoidAsync("setTheme", theme) ?? ValueTask.CompletedTask);
     }
 }
