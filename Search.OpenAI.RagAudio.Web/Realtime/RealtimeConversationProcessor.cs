@@ -145,8 +145,18 @@ public sealed class RealtimeConversationProcessor(
     {
         return kind switch
         {
-            ConversationUpdateKind.Unknown => RealtimeStatus.Unknown,
+            ConversationUpdateKind.Unknown
+                or ConversationUpdateKind.ResponseFinished
+                or ConversationUpdateKind.ItemContentPartFinished
+                or ConversationUpdateKind.InputTranscriptionFinished
+                or ConversationUpdateKind.ItemContentPartFinished
+                or ConversationUpdateKind.ItemStreamingFinished
+                or ConversationUpdateKind.ItemStreamingPartAudioFinished
+                or ConversationUpdateKind.ItemStreamingPartAudioTranscriptionFinished
+                or ConversationUpdateKind.ItemStreamingPartTextFinished => RealtimeStatus.StandingBy,
+
             ConversationUpdateKind.Error => RealtimeStatus.Error,
+
             _ => RealtimeStatus.Conversating
         };
     }

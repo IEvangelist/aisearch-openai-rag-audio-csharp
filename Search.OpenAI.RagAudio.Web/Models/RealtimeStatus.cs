@@ -2,7 +2,7 @@
 
 public enum RealtimeStatus
 {
-    Unknown,
+    StandingBy,
     Conversating,
     Error
 };

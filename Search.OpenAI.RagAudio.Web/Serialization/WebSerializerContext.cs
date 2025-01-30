@@ -5,4 +5,4 @@
     Converters = [ typeof(JsonStringEnumConverter<MediaDeviceKind>) ])]
 [JsonSerializable(typeof(MediaDeviceInfo[]))]
 [JsonSerializable(typeof(MediaDeviceKind))]
-internal sealed partial class JsonContext : JsonSerializerContext;
+internal sealed partial class WebSerializerContext : JsonSerializerContext;

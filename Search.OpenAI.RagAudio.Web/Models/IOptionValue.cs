@@ -1,6 +1,4 @@
-﻿using System.Linq;
-
-namespace Search.OpenAI.RagAudio.Web.Models;
+﻿namespace Search.OpenAI.RagAudio.Web.Models;
 
 public interface IOptionValue
 {

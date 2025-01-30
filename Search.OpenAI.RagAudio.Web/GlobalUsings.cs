@@ -1,5 +1,4 @@
 ﻿global using System.ComponentModel.DataAnnotations;
-global using System.Diagnostics.CodeAnalysis;
 global using System.IO.Pipelines;
 global using System.Text;
 global using System.Text.Json;
@@ -17,7 +16,6 @@ global using OpenAI.RealtimeConversation;
 
 global using Search.OpenAI.RagAudio.Web.Components;
 global using Search.OpenAI.RagAudio.Web.Components.Shared;
-global using Search.OpenAI.RagAudio.Web.Extensions;
 global using Search.OpenAI.RagAudio.Web.Models;
 global using Search.OpenAI.RagAudio.Web.Options;
 global using Search.OpenAI.RagAudio.Web.Realtime;

@@ -32,7 +32,7 @@ public sealed class AppJSModule(IJSRuntime js)
 
         var json = await _module.InvokeAsync<string>(identifier);
 
-        var devices = JsonSerializer.Deserialize(json, JsonContext.Default.MediaDeviceInfoArray);
+        var devices = JsonSerializer.Deserialize(json, WebSerializerContext.Default.MediaDeviceInfoArray);
 
         return devices ?? [];
     }

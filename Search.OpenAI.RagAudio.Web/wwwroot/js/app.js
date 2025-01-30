@@ -1,6 +1,16 @@
 ﻿export async function setAudioOutputDevice(element, deviceId) {
     if (deviceId && element && element.setSinkId) {
-        await element.setSinkId(deviceId);
+
+        const allowed = await navigator.permissions.query({ name: 'microphone' });
+        if (!allowed || allowed.state !== 'granted') {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: { sampleRate: 24000 } });
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        if (devices.some(d => d.deviceId === deviceId)) {
+            await element.setSinkId(deviceId);
+        }
     }
 }
 

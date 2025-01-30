@@ -1,30 +1,39 @@
-﻿@page "/Error"
+﻿@page "/error"
 @using System.Diagnostics
 
 <PageTitle>Error</PageTitle>
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+<div class="grid h-full place-content-center bg-white px-4 dark:bg-gray-900">
+    <div class="text-center">
+        <h1 class="text-9xl font-black text-gray-200 dark:text-gray-700">Error</h1>
 
-@if (ShowRequestId)
-{
-    <p>
-        <strong>Request ID:</strong> <code>@RequestId</code>
-    </p>
-}
+        <p class="text-2xl font-bold tracking-tight text-gray-900 sm:text-4xl dark:text-white">
+            An error occurred while processing your request.
+        </p>
 
-<h3>Development Mode</h3>
-<p>
-    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
-</p>
-<p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
-</p>
+        <p class="mt-4 text-gray-500 dark:text-gray-400">
+            @if (ShowRequestId)
+            {
+                <strong>Request ID:</strong> <code>@RequestId</code>
+            }
+        </p>
+        <p class="justify-center max-w-1/2">
+            Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
+        </p>
+        <p class="justify-center max-w-1/2">
+            <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
+            It can result in displaying sensitive information from exceptions to end users.
+            For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
+            and restarting the app.
+        </p>
 
-@code{
+        <a href="/" class="mt-6 inline-block rounded bg-indigo-600 px-5 py-3 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring">
+            Home
+        </a>
+    </div>
+</div>
+
+@code {
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
