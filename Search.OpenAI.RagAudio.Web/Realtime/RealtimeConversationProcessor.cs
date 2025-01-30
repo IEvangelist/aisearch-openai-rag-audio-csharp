@@ -2,6 +2,7 @@
 
 public sealed class RealtimeConversationProcessor(
     AzureOpenAIClient client,
+    RealtimeToolFactory toolFactory,
     ILocalStorageService localStorage,
     IOptions<AzureOptions> options,
     ILogger<RealtimeConversationProcessor> logger) : IDisposable
@@ -51,16 +52,14 @@ public sealed class RealtimeConversationProcessor(
             Voice = preferredVoice,
             TurnDetectionOptions = ConversationTurnDetectionOptions.CreateServerVoiceActivityTurnDetectionOptions(),
             ContentModalities = ConversationContentModalities.Audio,
-            InputTranscriptionOptions = new()
-            {
-                Model = "whisper-1",
-            },
-            Instructions = $"""
-                You are a helpful assistant.
-                The user is listening to answers with audio, so it's **super** important that answers are _as short as possible_, a single sentence if at all possible.
-                The current date is {DateTime.Now.ToLongDateString()}
-                """
+            InputTranscriptionOptions = new() { Model = "whisper-1", },
+            Instructions = RealtimeDefaults.SystemMessageInstructions,
         };
+
+        foreach (var tool in toolFactory.CreateRealtimeTools())
+        {
+            sessionOptions.Tools.Add(tool);
+        }
 
         await session.ConfigureSessionAsync(sessionOptions, cancellationToken);
 

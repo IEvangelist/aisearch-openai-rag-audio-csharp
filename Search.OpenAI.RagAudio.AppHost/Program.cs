@@ -1,5 +1,9 @@
 ﻿var builder = DistributedApplication.CreateBuilder(args);
 
+var search = builder.ExecutionContext.IsPublishMode
+    ? builder.AddAzureSearch("search")
+    : builder.AddConnectionString("search");
+
 var openai = builder.ExecutionContext.IsPublishMode
     ? builder.AddAzureOpenAI("openai")
             .AddDeployment(deployment: new AzureOpenAIDeployment(
@@ -11,6 +15,7 @@ var openai = builder.ExecutionContext.IsPublishMode
 
 builder.AddProject<Projects.Search_OpenAI_RagAudio_Web>("blazor-server-side")
     .WithReference(openai)
+    .WithReference(search)
     .WithAzureEnvironmentVariables();
 
 builder.Build().Run();

@@ -30,7 +30,18 @@ internal static class RealtimeServiceCollectionExtensions
                 endpoint, new AzureKeyCredential(key));
         });
 
+        services.AddScoped(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<AzureOptions>>().Value;
+
+            var indexClient = provider.GetRequiredService<SearchIndexClient>();
+
+            return indexClient.GetSearchClient(options.AzureSearchIndex);
+        });
+
         services.AddLocalStorageServices();
+        services.AddScoped<SearchService>();
+        services.AddScoped<RealtimeToolFactory>();
         services.AddScoped<MicrophoneSignal>();
         services.AddScoped<AppJSModule>();
 

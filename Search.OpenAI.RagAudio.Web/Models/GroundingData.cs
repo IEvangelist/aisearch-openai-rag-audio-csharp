@@ -1,3 +1,3 @@
-﻿namespace Search.OpenAI.Shared.Search;
+﻿namespace Search.OpenAI.RagAudio.Web.Models;
 
 public sealed record class GroundingData(SearchResult[] Sources);

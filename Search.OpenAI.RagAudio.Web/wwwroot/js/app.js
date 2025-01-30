@@ -10,8 +10,12 @@
         const devices = await navigator.mediaDevices.enumerateDevices();
         if (devices.some(d => d.deviceId === deviceId)) {
             await element.setSinkId(deviceId);
+
+            return deviceId;
         }
     }
+
+    return null;
 }
 
 export function getClientSpeakers() {

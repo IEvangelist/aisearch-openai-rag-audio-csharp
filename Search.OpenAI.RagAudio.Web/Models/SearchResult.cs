@@ -1,4 +1,4 @@
-﻿namespace Search.OpenAI.Shared.Search;
+﻿namespace Search.OpenAI.RagAudio.Web.Models;
 
 public record class SearchResult(
     string Title = "", 

@@ -12,6 +12,8 @@ public sealed partial class NavMenu(ILocalStorageService localStorage, AppJSModu
 
     private MediaDeviceInfo[] _microphones = [];
     private MediaDeviceInfo[] _speakers = [];
+
+    // TODO: As the ConversationVoice struct grows, we should be able to add them here.
     private readonly string[] _voices =
     [
         nameof(ConversationVoice.Alloy),
@@ -48,13 +50,25 @@ public sealed partial class NavMenu(ILocalStorageService localStorage, AppJSModu
             ));
         }
 
-        if (_audioElement.HasValue && _selectedSpeaker is not null)
-        {
-            await js.SetAudioOutputAsync(_audioElement.Value, _selectedSpeaker);
-        }
+        await TrySetAudioOutputAsync(_audioElement, _selectedSpeaker);
 
         StateHasChanged();
     });
+
+    private async Task TrySetAudioOutputAsync(ElementReference? element, string? deviceId)
+    {
+        if (!element.HasValue || deviceId is null)
+        {
+            return;
+        }
+
+        var setDeviceId = await js.SetAudioOutputAsync(element.Value, deviceId);
+        if (setDeviceId is null || setDeviceId != deviceId)
+        {
+            var defaultSpeaker = _speakers.FirstOrDefault();
+            (_selectedSpeaker, _selectedSpeakerLabel) = (defaultSpeaker?.DeviceId, defaultSpeaker?.Label);
+        }
+    }
 
     private Task OnButtonClicked(DialogButtonChoice choice) => InvokeAsync(async () =>
     {
@@ -81,10 +95,7 @@ public sealed partial class NavMenu(ILocalStorageService localStorage, AppJSModu
         _selectedSpeaker = speakerOption?.Value;
         _selectedSpeakerLabel = speakerOption?.Name;
 
-        if (_audioElement.HasValue && _selectedSpeaker is not null)
-        {
-            await js.SetAudioOutputAsync(_audioElement.Value, _selectedSpeaker);
-        }
+        await TrySetAudioOutputAsync(_audioElement, _selectedSpeaker);
 
         StateHasChanged();
     });

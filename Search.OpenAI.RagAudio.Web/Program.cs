@@ -1,6 +1,7 @@
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddAzureSearchClient("search");
 
 builder.Services.AddOpenApi();
 builder.Services.AddRealtimeServices(builder.Configuration);

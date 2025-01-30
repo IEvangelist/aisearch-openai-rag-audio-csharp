@@ -3,6 +3,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="Aspire.Azure.Search.Documents" Version="9.0.0" />
     <PackageVersion Include="Aspire.Hosting.Azure.CognitiveServices" Version="9.0.0" />
     <PackageVersion Include="Aspire.Hosting.Azure.Search" Version="9.0.0" />
     <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="9.0.0" />
