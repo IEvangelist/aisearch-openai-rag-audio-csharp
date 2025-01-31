@@ -56,15 +56,18 @@ public sealed partial class SearchService(
                 documents.AddRange(page.Document);
             }
 
-            return
+            SourceContentResult[] sourceContentResults =
             [
-                ..documents.Where(d => d.ContainsKey(config.ContentField)
-                    && d.ContainsKey(config.IdentifierField))
-                    .Select(d => new SourceContentResult(
+                ..documents.Select(d => new SourceContentResult(
                         Source: d[config.IdentifierField].ToString()!,
                         Content: d[config.ContentField].ToString()!
                 ))
             ];
+
+            logger.LogInformation("Source content results: {Result}",
+                string.Join("\n ", [..sourceContentResults]));
+
+            return sourceContentResults;
         }
         catch (Exception ex)
         {
@@ -108,12 +111,9 @@ public sealed partial class SearchService(
                 documents.AddRange(page.Document);
             }
 
-            return
+            GroundingData[] groundingData =
             [
-                ..documents.Where(d => d.ContainsKey(config.TitleField)
-                    && d.ContainsKey(config.ContentField)
-                    && d.ContainsKey(config.IdentifierField))
-                    .Select(d => new GroundingData(Sources: [
+                ..documents.Select(d => new GroundingData(Sources: [
                         new SearchResult(
                             Title: d[config.TitleField].ToString()!,
                             Chunk: d[config.ContentField].ToString()!,
@@ -121,6 +121,11 @@ public sealed partial class SearchService(
                         )
                 ]))
             ];
+
+            logger.LogInformation("Grounding data: {Result}",
+                string.Join("\n ", [.. groundingData]));
+
+            return groundingData;
         }
         catch (Exception ex)
         {

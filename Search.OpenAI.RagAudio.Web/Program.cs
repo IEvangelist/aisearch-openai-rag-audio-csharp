@@ -1,6 +1,8 @@
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+
+builder.AddAzureOpenAIClient("openai");
 builder.AddAzureSearchClient("search");
 
 builder.Services.AddOpenApi();

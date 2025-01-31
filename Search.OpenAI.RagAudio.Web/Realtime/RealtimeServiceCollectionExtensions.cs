@@ -13,42 +13,6 @@ internal static class RealtimeServiceCollectionExtensions
         services.AddScoped(provider =>
         {
             var options = provider.GetRequiredService<IOptions<AzureOptions>>().Value;
-
-            if (options.AzureOpenAIEndpoint is not { } endpoint)
-            {
-                throw new InvalidOperationException(
-                    "An Azure:AzureOpenAIEndpoint value is required.");
-            }
-
-            if (options.AzureOpenAIKey is not { } key)
-            {
-                throw new InvalidOperationException(
-                    "An Azure:AzureOpenAIKey value is required.");
-            }
-
-            return new AzureOpenAIClient(
-                endpoint, new AzureKeyCredential(key));
-        });
-
-        services.AddScoped(provider =>
-        {
-            var options = provider.GetRequiredService<IOptions<AzureOptions>>().Value;
-
-            //if (options.AzureSearchEndpoint is not { } endpoint)
-            //{
-            //    throw new InvalidOperationException(
-            //        "An Azure:AzureSearchEndpoint value is required.");
-            //}
-
-            //if (options.AzureSearchKey is not { } key)
-            //{
-            //    throw new InvalidOperationException(
-            //        "An Azure:AzureSearchKey value is required.");
-            //}
-
-            //var indexClient = new SearchIndexClient(
-            //    endpoint, new AzureKeyCredential(key));
-
             var indexClient = provider.GetRequiredService<SearchIndexClient>();
 
             return indexClient.GetSearchClient(options.AzureSearchIndex);

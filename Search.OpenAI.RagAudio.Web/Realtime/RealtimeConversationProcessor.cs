@@ -156,15 +156,14 @@ public sealed class RealtimeConversationProcessor(
                 logger,
                 cancellationToken) is { } output)
         {
-            await _session!.AddItemAsync(output, cancellationToken);
+            logger.LogInformation("Attempting to add a conversation item: {Output}", output);
 
-            logger.LogDebug("Added function call output to the conversation: {Output}", output);
+            await _session!.AddItemAsync(output, cancellationToken);
         }
     }
-
     private Task OnConversationErrorAsync(ConversationErrorUpdate error)
     {
-        logger.LogWarning("Error code: {Code}, Error event id: {ErrorEventId}, Event id: {EventId}, Parameter: {Param}, Message: {Message}",
+        logger.LogError("Error code: {Code}, Error event id: {ErrorEventId}, Event id: {EventId}, Parameter: {Param}, Message: {Message}",
             error.ErrorCode, error.ErrorEventId, error.EventId, error.ParameterName, error.Message);
 
         return Task.CompletedTask;
@@ -213,8 +212,6 @@ public sealed class RealtimeConversationProcessor(
 
     private async Task OnResponseFinishedAsync(ConversationResponseFinishedUpdate responseFinished, CancellationToken cancellationToken)
     {
-        logger.LogDebug("Response finished.");
-
         // If we added one or more function call results, instruct the model to respond to them.
         if (responseFinished.CreatedItems.Any(item => !string.IsNullOrEmpty(item.FunctionName)))
         {
