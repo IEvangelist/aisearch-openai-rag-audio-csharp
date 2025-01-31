@@ -18,37 +18,47 @@ public sealed partial class Microphone(ILocalStorageService localStorage, IJSRun
             return;
         }
 
+        await InitializeMicrophoneModuleAsync();
+    }
+
+    [MemberNotNullWhen(true, nameof(_module))]
+    private async ValueTask<bool> InitializeMicrophoneModuleAsync()
+    {
         if (_module is null)
         {
             _module = await js.InvokeAsync<IJSObjectReference>("import", "../js/microphone.js");
 
             logger.LogInformation("Initialized microphone module.");
+
+            return _module is not null;
         }
+
+        return true;
     }
 
     public async Task StartAsync()
     {
-        if (_module is null)
-        {
-            logger.LogWarning("Microphone module is null");
+        var initialized = await InitializeMicrophoneModuleAsync();
 
-            return;
-        }
-
-        if (_microphone is null)
+        if (initialized && _microphone is null)
         {
             var deviceId = await localStorage.GetItemAsync<string>("microphone");
 
-            _microphone = await _module.InvokeAsync<IJSObjectReference>("start", DotNetObjectReference.Create(this), deviceId);
+            _microphone = await _module!.InvokeAsync<IJSObjectReference>("start", DotNetObjectReference.Create(this), deviceId);
 
             logger.LogInformation("Initialized microphone object.");
         }
     }
 
-    public async ValueTask StopAsync()
+    public Task StopAsync() => InvokeAsync(async () =>
     {
         await (_module?.InvokeVoidAsync("stop") ?? ValueTask.CompletedTask);
-    }
+        await (_module?.DisposeAsync() ?? ValueTask.CompletedTask);
+
+        _module = null;
+
+        StateHasChanged();
+    });
 
     [JSInvokable]
     public Task OnMicConnectedAsync()

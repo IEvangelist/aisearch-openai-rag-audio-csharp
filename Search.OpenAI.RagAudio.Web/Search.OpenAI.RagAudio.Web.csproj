@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <NoWarn>$(NoWarn);OPENAI002</NoWarn>
+    <UserSecretsId>8aa14528-f102-4444-86f4-be328aa1963f</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

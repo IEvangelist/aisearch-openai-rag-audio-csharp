@@ -1,6 +1,9 @@
 ﻿namespace Search.OpenAI.RagAudio.Web.Services;
 
-public sealed partial class SearchService(SearchClient client, IConfiguration configuration)
+public sealed partial class SearchService(
+    SearchClient client,
+    IConfiguration configuration,
+    ILogger<SearchService> logger)
 {
     private AzureSearchConfiguration? _searchConfiguration;
 
@@ -11,6 +14,8 @@ public sealed partial class SearchService(SearchClient client, IConfiguration co
         """)]
     public async Task<SearchResult[]> SearchAsync([Description("Search query")] string query)
     {
+        logger.LogInformation("Searching for: {Query}", query);
+
         var config = GetSearchConfiguration();
 
         var type = Enum.TryParse<SearchQueryType>(config.SemanticConfiguration, ignoreCase: true, out var queryType)
@@ -19,7 +24,6 @@ public sealed partial class SearchService(SearchClient client, IConfiguration co
 
         var searchOptions = new SearchOptions
         {
-            SearchFields = { config.EmbeddingField },
             Select = { config.IdentifierField, config.ContentField },
             SemanticSearch = new SemanticSearchOptions
             {
@@ -32,32 +36,45 @@ public sealed partial class SearchService(SearchClient client, IConfiguration co
         if (config.UseVectorQuery)
         {
             var vectorOptions = new VectorSearchOptions();
-            vectorOptions.Queries.Add(new VectorizableTextQuery(query));
+            vectorOptions.Queries.Add(new VectorizableTextQuery(query)
+            {
+                Fields = { config.EmbeddingField },
+                KNearestNeighborsCount = 50
+            });
 
             searchOptions.VectorSearch = vectorOptions;
         }
 
-        var result = await client.SearchAsync<SearchDocument[]>(
-            searchText: query,
-            options: searchOptions);
-
-        List<SearchDocument> documents = [];
-
-        await foreach (var page in result.Value.GetResultsAsync())
+        try
         {
-            documents.AddRange(page.Document);
-        }
+            var result = await client.SearchAsync<SearchDocument>(
+                searchText: query,
+                options: searchOptions);
 
-        return
-        [
-            ..documents.Where(d => d.ContainsKey(config.ContentField)
+            List<SearchDocument> documents = [];
+
+            await foreach (var page in result.Value.GetResultsAsync())
+            {
+                documents.AddRange(page.Document);
+            }
+
+            return
+            [
+                ..documents.Where(d => d.ContainsKey(config.ContentField)
                     && d.ContainsKey(config.IdentifierField))
-                .Select(d => new SearchResult(
-                        Title: d[config.TitleField].ToString()!,
-                        Chunk: d[config.ContentField].ToString()!,
-                ChunkId: d[config.IdentifierField].ToString()!
+                    .Select(d => new SearchResult(
+                            Title: d[config.TitleField].ToString()!,
+                            Chunk: d[config.ContentField].ToString()!,
+                    ChunkId: d[config.IdentifierField].ToString()!
                 ))
-        ];
+            ];
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error searching for: {Query}", query);
+
+            throw;
+        }
     }
 
     [Description("""
@@ -73,26 +90,31 @@ public sealed partial class SearchService(SearchClient client, IConfiguration co
 
         string[] keySources = [.. sources.Where(static s => KeyPattern().IsMatch(s))];
         var query = string.Join(" OR ", keySources);
-        var result = await client.SearchAsync<SearchDocument[]>(
-            searchText: query,
-            options: new SearchOptions
-            {
-                SearchFields = { config.IdentifierField },
-                Select = { config.IdentifierField, config.TitleField, config.ContentField },
-                Size = keySources.Length,
-                QueryType = SearchQueryType.Full
-            });
 
-        List<SearchDocument> documents = [];
+        logger.LogInformation("Reporting groundings: {Query}", query);
 
-        await foreach (var page in result.Value.GetResultsAsync())
+        try
         {
-            documents.AddRange(page.Document);
-        }
+            var result = await client.SearchAsync<SearchDocument>(
+                searchText: query,
+                options: new SearchOptions
+                {
+                    SearchFields = { config.IdentifierField },
+                    Select = { config.IdentifierField, config.TitleField, config.ContentField },
+                    Size = keySources.Length,
+                    QueryType = SearchQueryType.Full
+                });
 
-        return
-        [
-            ..documents.Where(d => d.ContainsKey(config.TitleField)
+            List<SearchDocument> documents = [];
+
+            await foreach (var page in result.Value.GetResultsAsync())
+            {
+                documents.AddRange(page.Document);
+            }
+
+            return
+            [
+                ..documents.Where(d => d.ContainsKey(config.TitleField)
                     && d.ContainsKey(config.ContentField)
                     && d.ContainsKey(config.IdentifierField))
                 .Select(d => new GroundingData(Sources: [
@@ -102,7 +124,14 @@ public sealed partial class SearchService(SearchClient client, IConfiguration co
                         ChunkId: d[config.IdentifierField].ToString()!
                     )
                 ]))
-        ];
+            ];
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error searching for: {Query}", query);
+
+            throw;
+        }
     }
 
     private AzureSearchConfiguration GetSearchConfiguration()
@@ -112,21 +141,23 @@ public sealed partial class SearchService(SearchClient client, IConfiguration co
             return _searchConfiguration.Value;
         }
 
-        var semanticConfiguration = configuration["AZURE_SEARCH_SEMANTIC_CONFIGURATION"] ?? "simple";
-        var identifierField = configuration["AZURE_SEARCH_IDENTIFIER_FIELD"] ?? "chunk_id";
-        var contentField = configuration["AZURE_SEARCH_CONTENT_FIELD"] ?? "chunk";
-        var embeddingField = configuration["AZURE_SEARCH_EMBEDDING_FIELD"] ?? "text_vector";
-        var titleField = configuration["AZURE_SEARCH_TITLE_FIELD"] ?? "title";
-        var useVectorQuery = configuration["AZURE_SEARCH_USE_VECTOR_QUERY"] == "true" || true;
+        var semanticConfiguration = configuration.GetValue("AZURE_SEARCH_SEMANTIC_CONFIGURATION", "simple");
+        var identifierField = configuration.GetValue("AZURE_SEARCH_IDENTIFIER_FIELD", "chunk_id");
+        var contentField = configuration.GetValue("AZURE_SEARCH_CONTENT_FIELD", "chunk");
+        var embeddingField = configuration.GetValue("AZURE_SEARCH_EMBEDDING_FIELD", "text_vector");
+        var titleField = configuration.GetValue("AZURE_SEARCH_TITLE_FIELD", "title");
+        var useVectorQuery = configuration.GetValue("AZURE_SEARCH_USE_VECTOR_QUERY", true);
 
         _searchConfiguration = new AzureSearchConfiguration(
-            identifierField,
-            contentField,
-            embeddingField,
-            titleField,
-            semanticConfiguration,
-            useVectorQuery
+            IdentifierField: identifierField,
+            ContentField: contentField,
+            EmbeddingField: embeddingField,
+            TitleField: titleField,
+            SemanticConfiguration: semanticConfiguration,
+            UseVectorQuery: useVectorQuery
         );
+
+        logger.LogInformation("Search configuration: {Configuration}", _searchConfiguration);
 
         return _searchConfiguration.Value;
     }

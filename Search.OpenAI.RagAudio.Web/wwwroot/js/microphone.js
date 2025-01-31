@@ -1,5 +1,6 @@
 ﻿let audioCtx;
 let micStreamSource;
+let microphoneStream;
 let workletNode;
 
 export async function start(component, deviceId) {
@@ -30,7 +31,7 @@ export async function start(component, deviceId) {
         console.log(`Using '${selectedDevice.label}' microphone.`);
 
         // Obtain the microphone stream using the selected device
-        const microphoneStream = await navigator.mediaDevices.getUserMedia({
+        microphoneStream = await navigator.mediaDevices.getUserMedia({
             video: false,
             audio: {
                 deviceId: selectedDevice.deviceId,
@@ -85,6 +86,11 @@ export function stop() {
         workletNode.port.close();
         workletNode.disconnect();
         workletNode = null;
+    }
+
+    if (microphoneStream) {
+        microphoneStream.getTracks().forEach(track => track.stop());
+        microphoneStream = null;
     }
 
     if (micStreamSource) {

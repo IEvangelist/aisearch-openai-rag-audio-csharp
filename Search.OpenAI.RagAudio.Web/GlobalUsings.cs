@@ -1,5 +1,6 @@
 ﻿global using System.ComponentModel;
 global using System.ComponentModel.DataAnnotations;
+global using System.Diagnostics.CodeAnalysis;
 global using System.IO.Pipelines;
 global using System.Text;
 global using System.Text.Json;

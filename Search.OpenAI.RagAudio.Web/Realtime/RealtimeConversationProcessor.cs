@@ -8,6 +8,7 @@ public sealed class RealtimeConversationProcessor(
     ILogger<RealtimeConversationProcessor> logger) : IDisposable
 {
     private readonly AzureOptions _options = options.Value;
+    private readonly HashSet<AIFunction> _registeredFunctions = [];
 
     private RealtimeConversationSession? _session;
     public byte[] _webSocketReceiveBuffer = new byte[1024 * 8];
@@ -51,14 +52,16 @@ public sealed class RealtimeConversationProcessor(
         {
             Voice = preferredVoice,
             TurnDetectionOptions = ConversationTurnDetectionOptions.CreateServerVoiceActivityTurnDetectionOptions(),
-            ContentModalities = ConversationContentModalities.Audio,
-            InputTranscriptionOptions = new() { Model = "whisper-1", },
+            ContentModalities = ConversationContentModalities.Audio | ConversationContentModalities.Text,
+            InputTranscriptionOptions = new() { Model = "whisper-1" },
             Instructions = RealtimeDefaults.SystemMessageInstructions,
         };
 
         foreach (var tool in toolFactory.CreateRealtimeTools())
         {
-            sessionOptions.Tools.Add(tool);
+            _registeredFunctions.Add(tool);
+
+            sessionOptions.Tools.Add(tool.ToConversationFunctionTool());
         }
 
         await session.ConfigureSessionAsync(sessionOptions, cancellationToken);
@@ -82,14 +85,14 @@ public sealed class RealtimeConversationProcessor(
         var sendAudioTask = SendAudioInputAsync(handler, cancellationToken);
 
         // The bot will greet us immediately upon connecting.
-        var startResponseTask = _session.StartResponseAsync(cancellationToken);
+        // var startResponseTask = _session.StartResponseAsync(cancellationToken);
 
         // Starts the process of registering the callers handlers and transcription listeners.
         var handleResponsesTask = HandleResponseAsync(handler, transcription, cancellationToken);
 
         await Task.WhenAll(tasks: [
                 sendAudioTask,
-                startResponseTask,
+                // startResponseTask,
                 handleResponsesTask
             ])
             .ConfigureAwait(false);
@@ -112,6 +115,14 @@ public sealed class RealtimeConversationProcessor(
             var conversationStatusTask = handler.OnConversationStatusAsync(GetStatus(update.Kind));
             var continuationTask = update switch
             {
+                ConversationErrorUpdate errorUpdate => OnConversationErrorAsync(errorUpdate),
+
+                ConversationItemStreamingFinishedUpdate streamingFinished =>
+                    streamingFinished.GetFunctionCallOutputAsync(
+                        _registeredFunctions,
+                        logger,
+                        cancellationToken),
+
                 ConversationItemStreamingPartDeltaUpdate outputDelta => OnStreamingOutputDeltaAsync(
                     handler,
                     outputDelta,
@@ -140,6 +151,14 @@ public sealed class RealtimeConversationProcessor(
         }
     }
 
+    private Task OnConversationErrorAsync(ConversationErrorUpdate error)
+    {
+        logger.LogWarning("Error code: {Code}, Error event id: {ErrorEventId}, Event id: {EventId}, Parameter: {Param}, Message: {Message}",
+            error.ErrorCode, error.ErrorEventId, error.EventId, error.ParameterName, error.Message);
+
+        return Task.CompletedTask;
+    }
+
     private static RealtimeStatus GetStatus(ConversationUpdateKind kind)
     {
         return kind switch
@@ -165,13 +184,13 @@ public sealed class RealtimeConversationProcessor(
         if (!string.IsNullOrEmpty(outputDelta.Text))
         {
             transcription.Append(outputDelta.Text);
-            logger.LogInformation("Appended text to transcription buffer: {Item}", outputDelta.Text);
+            logger.LogDebug("Appended text to transcription buffer: {Item}", outputDelta.Text);
         }
 
         if (!string.IsNullOrEmpty(outputDelta.AudioTranscript))
         {
             transcription.Append(outputDelta.AudioTranscript);
-            logger.LogInformation("Appended audio-text to transcription buffer: {Item}", outputDelta.AudioTranscript);
+            logger.LogDebug("Appended audio-text to transcription buffer: {Item}", outputDelta.AudioTranscript);
         }
 
         if (outputDelta.AudioBytes is { } bytes)
@@ -183,7 +202,7 @@ public sealed class RealtimeConversationProcessor(
 
     private async Task OnResponseFinishedAsync(ConversationResponseFinishedUpdate responseFinished, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Response finished: {Item}", responseFinished);
+        logger.LogDebug("Response finished.");
 
         // If we added one or more function call results, instruct the model to respond to them.
         if (responseFinished.CreatedItems.Any(item => !string.IsNullOrEmpty(item.FunctionName)))

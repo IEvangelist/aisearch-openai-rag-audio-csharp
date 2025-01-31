@@ -87,7 +87,7 @@ public sealed partial class Home(
         {
             if (_speaker is not null)
             {
-                logger.LogInformation("Enqueuing audio data, received {Count:0,0} bytes.", audioBytes.Length);
+                logger.LogDebug("Enqueuing audio data, received {Count:0,0} bytes.", audioBytes.Length);
 
                 var enqueued = await _speaker.EnqueueAsync(audioBytes);
                 if (enqueued is false)
