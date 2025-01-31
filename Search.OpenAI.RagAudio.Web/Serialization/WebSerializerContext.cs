@@ -6,5 +6,6 @@
 [JsonSerializable(typeof(MediaDeviceInfo[]))]
 [JsonSerializable(typeof(MediaDeviceKind))]
 [JsonSerializable(typeof(SearchResult))]
+[JsonSerializable(typeof(SourceContentResult))]
 [JsonSerializable(typeof(GroundingData))]
 internal sealed partial class WebSerializerContext : JsonSerializerContext;

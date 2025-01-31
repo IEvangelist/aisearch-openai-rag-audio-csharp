@@ -117,11 +117,9 @@ public sealed class RealtimeConversationProcessor(
             {
                 ConversationErrorUpdate errorUpdate => OnConversationErrorAsync(errorUpdate),
 
-                ConversationItemStreamingFinishedUpdate streamingFinished =>
-                    streamingFinished.GetFunctionCallOutputAsync(
-                        _registeredFunctions,
-                        logger,
-                        cancellationToken),
+                ConversationItemStreamingFinishedUpdate streamingFinished => OnConversationStreamingFinishedAsync(
+                    streamingFinished,
+                    cancellationToken),
 
                 ConversationItemStreamingPartDeltaUpdate outputDelta => OnStreamingOutputDeltaAsync(
                     handler,
@@ -148,6 +146,19 @@ public sealed class RealtimeConversationProcessor(
                     continuationTask
                 )
                 .ConfigureAwait(false);
+        }
+    }
+
+    private async Task OnConversationStreamingFinishedAsync(ConversationItemStreamingFinishedUpdate streamingFinished, CancellationToken cancellationToken)
+    {
+        if (await streamingFinished.GetFunctionCallOutputAsync(
+                _registeredFunctions,
+                logger,
+                cancellationToken) is { } output)
+        {
+            await _session!.AddItemAsync(output, cancellationToken);
+
+            logger.LogDebug("Added function call output to the conversation: {Output}", output);
         }
     }
 

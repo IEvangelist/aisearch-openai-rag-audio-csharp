@@ -35,6 +35,13 @@
     <Microphone @ref="_microphone" OnMicrophoneAvailable=@OnMicrophoneAvailable />
     <Speaker @ref="_speaker" />
 
+    <div style="display: none">
+        @foreach (var transcript in _transcript)
+        {
+            <p>@transcript</p>
+        }
+    </div>
+
     <footer class="py-4 text-center">
         @{
             var (text, color) = _status switch

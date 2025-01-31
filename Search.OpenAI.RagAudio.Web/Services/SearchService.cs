@@ -7,12 +7,10 @@ public sealed partial class SearchService(
 {
     private AzureSearchConfiguration? _searchConfiguration;
 
-    [Description("""
-        Search the knowledge base. The knowledge base is in English, translate to and from English if 
-        needed. Results are formatted as a source name first in square brackets, followed by the text 
-        content, and a line with '-----' at the end of each result.
-        """)]
-    public async Task<SearchResult[]> SearchAsync([Description("Search query")] string query)
+    [Description(
+        "Search the knowledge base. The knowledge base is in English, translate to and from English if " +
+        "needed. Results are formatted as a source name and text content pair for each result.")]
+    public async Task<SourceContentResult[]> SearchAsync([Description("Search query")] string query)
     {
         logger.LogInformation("Searching for: {Query}", query);
 
@@ -62,10 +60,9 @@ public sealed partial class SearchService(
             [
                 ..documents.Where(d => d.ContainsKey(config.ContentField)
                     && d.ContainsKey(config.IdentifierField))
-                    .Select(d => new SearchResult(
-                            Title: d[config.TitleField].ToString()!,
-                            Chunk: d[config.ContentField].ToString()!,
-                    ChunkId: d[config.IdentifierField].ToString()!
+                    .Select(d => new SourceContentResult(
+                        Source: d[config.IdentifierField].ToString()!,
+                        Content: d[config.ContentField].ToString()!
                 ))
             ];
         }
@@ -77,11 +74,10 @@ public sealed partial class SearchService(
         }
     }
 
-    [Description("""
-        Report use of a source from the knowledge base as part of an answer (effectively, cite the source). Sources 
-        appear in square brackets before each knowledge base passage. Always use this tool to cite sources when responding 
-        with information from the knowledge base.
-        """)]
+    [Description(
+        "Report use of a source from the knowledge base as part of an answer (effectively, cite the source). Sources " +
+        "appear in square brackets before each knowledge base passage. Always use this tool to cite sources when responding " +
+        "with information from the knowledge base.")]
     public async Task<GroundingData[]> ReportGroundingAsync(
         [Description("List of source names from last statement actually used, do not include the ones not used to formulate a response")]
         string[] sources)
@@ -117,12 +113,12 @@ public sealed partial class SearchService(
                 ..documents.Where(d => d.ContainsKey(config.TitleField)
                     && d.ContainsKey(config.ContentField)
                     && d.ContainsKey(config.IdentifierField))
-                .Select(d => new GroundingData(Sources: [
-                    new SearchResult(
-                        Title: d[config.TitleField].ToString()!,
-                        Chunk: d[config.ContentField].ToString()!,
-                        ChunkId: d[config.IdentifierField].ToString()!
-                    )
+                    .Select(d => new GroundingData(Sources: [
+                        new SearchResult(
+                            Title: d[config.TitleField].ToString()!,
+                            Chunk: d[config.ContentField].ToString()!,
+                            ChunkId: d[config.IdentifierField].ToString()!
+                        )
                 ]))
             ];
         }
